@@ -6,10 +6,13 @@ import glob
 print('Starting CheckStability_Fates_spinup')
 
 # File names. Modify manually!
-case_name = 'n1850.FATES-NOCOMP-AD.ne30_tn14.alpha08d.20250127_fixFincl1'
+#case_name = 'n1850.FATES-NOCOMP-AD.ne30_tn14.alpha08d.20250127_fixFincl1'
 #case_name = 'n1850.FATES-NOCOMP-postAD.ne30pg3_tn14.alpha08d.20250129_fixFincl1'
+case_name = 'i1850.FATES-NOCOMP.ne30pg3_tn14.alpha08d.20250218_coldstart_adrianas_tuning'
+
 #case_dir =f'/nird/datalake/NS9560K/kjetisaa/{case_name}/lnd/hist'
 case_dir =f'/cluster/work/users/kjetisaa/archive/{case_name}/lnd/hist/'
+#case_dir =f'/cluster/work/users/kjetisaa/noresm/{case_name}/run/'
 
 # Conversion factors
 km2_to_m2 = 1e6
@@ -35,7 +38,7 @@ for filename in timeseries_files[:-1]:
                 area = data["area"].fillna(0)
                 landfrac = data["landfrac"].fillna(0)
                 first_file=False
-            print(filename)
+                print(filename)
             for var in variables:
                 if var in data:
                     var_data = data[var]
