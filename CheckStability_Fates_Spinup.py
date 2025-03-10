@@ -14,6 +14,8 @@ case_name = 'i1850.FATES-NOCOMP.ne30pg3_tn14.alpha08d.20250218_coldstart_adriana
 case_dir =f'/cluster/work/users/kjetisaa/archive/{case_name}/lnd/hist/'
 #case_dir =f'/cluster/work/users/kjetisaa/noresm/{case_name}/run/'
 
+calc_annual = True
+
 # Conversion factors
 km2_to_m2 = 1e6
 g_to_Gt = 1e-15
@@ -71,6 +73,20 @@ for var in variables:
 
 time = np.concatenate(time)
 
+if calc_annual:
+    # Calculate annual means
+    annual_means = {var: [] for var in variables}
+    annual_time = []
+    for year in np.unique(time.astype('datetime64[Y]').astype(int)):
+        mask = (time.astype('datetime64[Y]').astype(int) == year)
+        annual_time.append(time[mask][0])
+        for var in variables:
+            annual_means[var].append(results[var][mask].mean())
+    time = np.array(annual_time)
+    for var in variables:
+        results[var] = np.array(annual_means[var])
+
+
 
 # Calculate deltas
 deltas = {var: np.diff(results[var], prepend=np.nan) for var in variables}
@@ -99,6 +115,9 @@ axes[-1, 0].set_xlabel('Time')
 axes[-1, 1].set_xlabel('Time')
 
 plt.tight_layout(rect=[0, 0, 1, 0.96])
-plt.savefig(f"figs/Stability_{case_name}.png")
+if calc_annual:
+    plt.savefig(f"figs/Stability_{case_name}_Annual.png")
+else:
+    plt.savefig(f"figs/Stability_{case_name}.png")
 
 print('Finished CheckStability_Fates_spinup.py')
