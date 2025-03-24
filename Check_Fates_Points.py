@@ -6,12 +6,20 @@ import glob
 print('Starting CheckFates_Points')
 
 # File names. Modify manually!
-case_name = 'i1850.FATES-NOCOMP.ne30pg3_tn14.alpha08d.20250218_coldstart_adrianas_tuning'
+case_name = 'i1850.FATES-NOCOMP-LUH2-evolve.ne30pg3_tn14.alpha09a.20250321'
 #case_name = 'n1850.FATES-NOCOMP-postAD.ne30pg3_tn14.alpha08d.20250206_fixFincl1'
 case_dir = f'/cluster/work/users/kjetisaa/archive/{case_name}/lnd/hist/'
 
+# Option to process only the last 10 years, only works for monthly data
+process_last_10_years = True
+
 # Find all timeseries files
 timeseries_files = sorted(glob.glob(f'{case_dir}/{case_name}.clm2.h0.*-*.nc'))
+
+if process_last_10_years:
+    # Filter files to include only the last 10 years
+    timeseries_files = timeseries_files[-120:]  # Assuming monthly data, 10 years = 120 months
+
 #variables = ["FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", "FATES_VEGC", "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_STOREC", "FATES_SEED_BANK", "FATES_REPROC", "FATES_LITTER_CWD_ELDC", "FATES_LITTER_AG_CWD_EL", "FATES_LITTER_AG_FINE_EL", "FATES_LITTER_BG_CWD_EL", "FATES_LITTER_BG_FINE_EL"]
 #variables = ["FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_LITTER_CWD_ELDC", "FATES_LITTER_AG_CWD_EL", "FATES_LITTER_AG_FINE_EL", "FATES_LITTER_BG_CWD_EL", "FATES_LITTER_BG_FINE_EL"]
 #variables = ["FATES_NPLANT_SZ","FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_MORTALITY_AGESCEN_SZ", "FATES_MORTALITY_BACKGROUND_SZ", "FATES_MORTALITY_CSTARV_SZ", "FATES_MORTALITY_FIRE_SZ", "FATES_MORTALITY_FREEZING_SZ", "FATES_MORTALITY_HYDRAULIC_SZ", "FATES_MORTALITY_IMPACT_SZ", "FATES_MORTALITY_LOGGING_SZ", "FATES_MORTALITY_SENESCENCE_SZ"]
@@ -118,7 +126,10 @@ else:
 
 # Create the suptitle with location names and coordinates
 location_titles = ', '.join([f"{loc} (lat: {coords['lat']}, lon: {coords['lon']})" for loc, coords in locations.items()])
-fig_title = f"Timeseries Data at {location_titles}"
+if process_last_10_years:
+    fig_title = f"Timeseries Data at {location_titles} (last 10 years)"
+else:
+    fig_title = f"Timeseries Data at {location_titles}"
 
 # Plotting
 fig, axes = plt.subplots(len(plot_variables), len(locations), figsize=(20, 15), sharex='col')
@@ -146,6 +157,10 @@ for i, var in enumerate(plot_variables):
             axes[i, j].set_ylabel('')
 
 plt.tight_layout(rect=[0, 0, 1, 0.96])
-plt.savefig(f"figs/Point_Timeseries_{case_name}.png")
+output_filename = f"figs/Point_Timeseries_{case_name}"
+if process_last_10_years:
+    output_filename += "_last10years"
+output_filename += ".png"
+plt.savefig(output_filename)
 
 print('Finished CheckFates_Points')
