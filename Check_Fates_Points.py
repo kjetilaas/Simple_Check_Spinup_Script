@@ -35,6 +35,24 @@ locations = {
     'Siberian': {'lat': 67.5, 'lon': 100.0}
 }
 
+# PFT names
+pft_names = [
+    "broadleaf_evergreen_tropical_tree",
+    "needleleaf_evergreen_extratrop_tree",
+    "needleleaf_colddecid_extratrop_tree",
+    "broadleaf_evergreen_extratrop_tree",
+    "broadleaf_hydrodecid_tropical_tree",
+    "broadleaf_colddecid_extratrop_tree",
+    "broadleaf_evergreen_extratrop_shrub",
+    "broadleaf_hydrodecid_extratrop_shrub",
+    "broadleaf_colddecid_extratrop_shrub",
+    "broadleaf_evergreen_arctic_shrub",
+    "broadleaf_colddecid_arctic_shrub",
+    "arctic_c3_grass",
+    "cool_c3_grass",
+    "c4_grass"
+]
+
 #convert negative longitudes to positive
 for loc in locations:
     if locations[loc]['lon'] < 0:
@@ -72,11 +90,16 @@ for filename in files_to_read:
                     locations[loc]['closest_idx'] = closest_idx
                     print(f"{loc}: The index of the closest point is: {closest_idx}")
                     print(f"{loc}: Closest point is at: {lats[closest_idx]}, {lons[closest_idx]}")
-                    if 'landfrac' in data and 'PCT_LANDUNIT' in data:
+                    if 'landfrac' in data:                        
                         landfrac = data['landfrac'][closest_idx].values
-                        pct_landunit = data['PCT_LANDUNIT'][:,:, closest_idx].values
                         print(f"{loc}: Land fraction (landfrac) is: {landfrac}")
+                    if 'PCT_LANDUNIT' in data:
+                        pct_landunit = data['PCT_LANDUNIT'][:,:, closest_idx].values
                         print(f"{loc}: Percentage of each landunit (PCT_LANDUNIT) is: {pct_landunit}")
+                    if 'FATES_NOCOMP_PATCHAREA_PF' in data:
+                        pct_pft= data['FATES_NOCOMP_PATCHAREA_PF'][:,:, closest_idx].values
+                        print(f"{loc}: Percentage PFT is: {pct_pft}")
+                        print(f'Dominant PFT is: {pft_names[np.argmax(pct_pft[-1])]}')
 
             for loc in locations:
                 closest_idx = locations[loc]['closest_idx']
