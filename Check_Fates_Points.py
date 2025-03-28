@@ -6,9 +6,14 @@ import glob
 print('Starting CheckFates_Points')
 
 # File names. Modify manually!
-case_name = 'i1850.FATES-NOCOMP-LUH2-evolve.ne30pg3_tn14.alpha09a.20250321'
-#case_name = 'n1850.FATES-NOCOMP-postAD.ne30pg3_tn14.alpha08d.20250206_fixFincl1'
+#case_name = 'i1850.FATES-NOCOMP-LUH2-evolve.ne30pg3_tn14.alpha09a.20250321'
+#case_name = 'i1850.FATES-NOCOMP-noLU_cal13_twosteam.ne30pg3_tn14.noresm3_0_alpha01.20250326'
+case_name = 'i1850.FATES-NOCOMP-noLU_cal15_twosteam.ne30pg3_tn14.noresm3_0_alpha01.20250326'
 case_dir = f'/cluster/work/users/kjetisaa/archive/{case_name}/lnd/hist/'
+#case_dir = f'/cluster/work/users/kjetisaa/noresm/{case_name}/run/'
+
+obs_dir = f'/cluster/home/kjetisaa/OBS_ILAMB/lai/'
+
 
 # Option to process only the last 10 years, only works for monthly data
 process_last_10_years = True
@@ -20,19 +25,23 @@ if process_last_10_years:
     # Filter files to include only the last 10 years
     timeseries_files = timeseries_files[-120:]  # Assuming monthly data, 10 years = 120 months
 
-#variables = ["FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", "FATES_VEGC", "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_STOREC", "FATES_SEED_BANK", "FATES_REPROC", "FATES_LITTER_CWD_ELDC", "FATES_LITTER_AG_CWD_EL", "FATES_LITTER_AG_FINE_EL", "FATES_LITTER_BG_CWD_EL", "FATES_LITTER_BG_FINE_EL"]
-#variables = ["FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_LITTER_CWD_ELDC", "FATES_LITTER_AG_CWD_EL", "FATES_LITTER_AG_FINE_EL", "FATES_LITTER_BG_CWD_EL", "FATES_LITTER_BG_FINE_EL"]
-#variables = ["FATES_NPLANT_SZ","FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_MORTALITY_AGESCEN_SZ", "FATES_MORTALITY_BACKGROUND_SZ", "FATES_MORTALITY_CSTARV_SZ", "FATES_MORTALITY_FIRE_SZ", "FATES_MORTALITY_FREEZING_SZ", "FATES_MORTALITY_HYDRAULIC_SZ", "FATES_MORTALITY_IMPACT_SZ", "FATES_MORTALITY_LOGGING_SZ", "FATES_MORTALITY_SENESCENCE_SZ"]
-variables = ["FATES_NPLANT_SZ","FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", 
-"FATES_NONSTRUCTC", "FATES_STRUCTC","FATES_MORTALITY_BACKGROUND_SZ", "FATES_MORTALITY_CSTARV_SZ", 
-"FATES_MORTALITY_FREEZING_SZ", "FATES_MORTALITY_HYDRAULIC_SZ", "FATES_MORTALITY_IMPACT_SZ"]
+plot_structure = False
+if plot_structure:
+    variables = ["FATES_NPLANT_SZ","FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", 
+    "FATES_NONSTRUCTC", "FATES_STRUCTC"]
+else:
+    variables = ["TLAI", "FATES_GPP", "FATES_NPP", "BTRAN", "SOILWATER_10CM", "FATES_GROWTH_RESP", "FATES_MAINT_RESP", "FATES_MORTALITY_BACKGROUND_SZ", 
+    "FATES_MORTALITY_CSTARV_SZ", "FATES_MORTALITY_FREEZING_SZ", "FATES_MORTALITY_HYDRAULIC_SZ", 
+    "FATES_MORTALITY_IMPACT_SZ", "FATES_MORTALITY_CANOPY_SZ", "FATES_MORTALITY_USTORY_SZ"] #"FATES_MORTALITY_FIRE_SZ"
 
 # Locations
 locations = {
-    'Amazon': {'lat': -0.5, 'lon': -65},
-    'Temperate': {'lat': 47.5, 'lon': 1.8},
-    'Boreal': {'lat': 57, 'lon': -113},
-    'Siberian': {'lat': 67.5, 'lon': 100.0}
+    'Amazon': {'lat': -0.5, 'lon': -65},  # Tropical rainforest
+    'C4_Gr': {'lat': 13.0, 'lon': 16.5},  # C4 grassland in Africa
+    'BL_CD': {'lat': 39.0, 'lon': -80.5},  # Broadleaf temperate forest in Eastern US
+    'Boreal': {'lat': 57.5, 'lon': -121.5},  # Boreal forest
+    'Cool_C3': {'lat': 53, 'lon': -7.5},  # Cool C3 grassland
+    'Siberian': {'lat': 68, 'lon': 120.0}  # Siberian grassland
 }
 
 # PFT names
@@ -74,7 +83,7 @@ for filename in files_to_read:
     try:        
         with xr.open_dataset(filename, engine='netcdf4') as data:
             if first_file:        
-                print('Reading latitude and longitude')
+                #print('Reading latitude and longitude')
                 lats = data['lat'].values
                 lons = data['lon'].values
                 first_file = False
@@ -88,18 +97,19 @@ for filename in files_to_read:
                     # Find the index of the minimum difference for lat and lon, ignoring NaNs
                     closest_idx = np.nanargmin(lat_diff + lon_diff)
                     locations[loc]['closest_idx'] = closest_idx
-                    print(f"{loc}: The index of the closest point is: {closest_idx}")
-                    print(f"{loc}: Closest point is at: {lats[closest_idx]}, {lons[closest_idx]}")
+                    #print(f"{loc}: The index of the closest point is: {closest_idx}")
+                    #print(f"{loc}: Closest point is at: {lats[closest_idx]}, {lons[closest_idx]}")
                     if 'landfrac' in data:                        
                         landfrac = data['landfrac'][closest_idx].values
-                        print(f"{loc}: Land fraction (landfrac) is: {landfrac}")
+                        #print(f"{loc}: Land fraction (landfrac) is: {landfrac}")
                     if 'PCT_LANDUNIT' in data:
                         pct_landunit = data['PCT_LANDUNIT'][:,:, closest_idx].values
-                        print(f"{loc}: Percentage of each landunit (PCT_LANDUNIT) is: {pct_landunit}")
+                        #print(f"{loc}: Percentage of each landunit (PCT_LANDUNIT) is: {pct_landunit}")
                     if 'FATES_NOCOMP_PATCHAREA_PF' in data:
                         pct_pft= data['FATES_NOCOMP_PATCHAREA_PF'][:,:, closest_idx].values
-                        print(f"{loc}: Percentage PFT is: {pct_pft}")
-                        print(f'Dominant PFT is: {pft_names[np.argmax(pct_pft[-1])]}')
+                        pct_pft_str = ', '.join([f"{p:.2f}" for p in pct_pft.flatten()])
+                        #print(f"{loc}: Percentage PFT is: {pct_pft_str}")
+                        print(f'{loc}: Dominant PFT is: {pft_names[np.argmax(pct_pft[-1])]}, {np.max(pct_pft[-1]*100):.2f} %')
 
             for loc in locations:
                 closest_idx = locations[loc]['closest_idx']
@@ -147,6 +157,17 @@ if plot_reduced_list:
 else:
     plot_variables = variables
 
+# Add CUE if NPP and GPP are available
+if all(var in results[loc] for var in ["FATES_NPP", "FATES_GPP"]):
+    for loc in locations:
+        # Check for division by zero
+        results[loc]["CUE"] = np.divide(results[loc]["FATES_NPP"], results[loc]["FATES_GPP"], out=np.zeros_like(results[loc]["FATES_NPP"]), where=results[loc]["FATES_GPP"] != 0)
+        # Set negative values to zero
+        results[loc]["CUE"] = np.clip(results[loc]["CUE"], 0, None)
+    # Append "CUE" to plot_variables only once
+    if "CUE" not in plot_variables:
+        plot_variables.append("CUE")
+
 # Create the suptitle with location names and coordinates
 location_titles = ', '.join([f"{loc} (lat: {coords['lat']}, lon: {coords['lon']})" for loc, coords in locations.items()])
 if process_last_10_years:
@@ -155,8 +176,8 @@ else:
     fig_title = f"Timeseries Data at {location_titles}"
 
 # Plotting
-fig, axes = plt.subplots(len(plot_variables), len(locations), figsize=(20, 15), sharex='col')
-fig.suptitle(fig_title)
+fig, axes = plt.subplots(len(plot_variables), len(locations), figsize=(30, 25), sharex='col')
+fig.suptitle(fig_title, fontsize=20)
 
 # Print the specified variables if they exist
 for loc in locations:
@@ -166,11 +187,64 @@ for loc in locations:
         print(f"FATES_TOTVEGC: {results[loc]['FATES_TOTVEGC']}")
         print(f"FATES_VEGC-FATES_TOTVEGC: {results[loc]['FATES_VEGC'] - results[loc]['FATES_TOTVEGC']}")
 
+# Define the observational datasets and their file paths
+obs_datasets = {
+    'AVH15C1': f'{obs_dir}AVH15C1/lai.nc',
+    'AVHRR': f'{obs_dir}AVHRR/lai_0.5x0.5.nc',
+    'GIMMS_LAI4g': f'{obs_dir}GIMMS_LAI4g/cao2023_lai.nc',
+    'MODIS': f'{obs_dir}MODIS/lai_0.5x0.5.nc'
+}
+
+# Read and process all observational LAI datasets
+obs_lai_results = {obs_name: {} for obs_name in obs_datasets.keys()}
+
+for obs_name, obs_file in obs_datasets.items():
+    try:
+        with xr.open_dataset(obs_file, engine='netcdf4') as obs_data:
+            obs_lai = obs_data['lai']  # Variable lai(time, lat, lon)
+            obs_lats = obs_data['lat'].values
+            obs_lons = obs_data['lon'].values
+
+            # Convert longitudes to the range [0, 360] for consistency
+            obs_lons = np.where(obs_lons < 0, obs_lons + 360, obs_lons)
+
+            # Average LAI into a climatological year (monthly mean over all years)
+            obs_lai_clim = obs_lai.groupby('time.month').mean(dim='time')
+
+            # Extract LAI for each location
+            for loc, coords in locations.items():
+                lat = coords['lat']
+                lon = coords['lon']
+
+                # Find the closest grid cell in the observational data
+                lat_diff = np.abs(obs_lats - lat)
+                lon_diff = np.abs(obs_lons - lon)
+                closest_idx = np.unravel_index(np.argmin(lat_diff[:, None] + lon_diff), (len(obs_lats), len(obs_lons)))
+
+                # Extract the climatological LAI for the closest grid cell
+                obs_lai_results[obs_name][loc] = obs_lai_clim[:, closest_idx[0], closest_idx[1]].values
+                #print(f"{loc}: {obs_name} LAI extracted for lat: {lat}, lon: {lon}, LAI: {obs_lai_results[obs_name][loc]}")
+
+    except FileNotFoundError:
+        print(f"Observational LAI file not found: {obs_file}")
+    except Exception as e:
+        print(f"Error processing {obs_name}: {e}")
+
+# Update the plotting section to include all observational LAI datasets
 for i, var in enumerate(plot_variables):
     for j, loc in enumerate(locations):
-        axes[i, j].plot(results[loc][var])
+        axes[i, j].plot(results[loc][var], label='Model')
+        if var == 'TLAI':
+            # Plot all observational LAI datasets
+            for obs_name, obs_data in obs_lai_results.items():
+                if loc in obs_data:
+                    #repeat the 12 month of obs for every model year
+                    obs_data[loc] = np.tile(obs_data[loc], int(len(results[loc][var]) / 12))
+                    axes[i, j].plot(obs_data[loc], label=obs_name, linestyle='--')
         if var in ["FATES_LITTERC", "FATES_TOTVEGC"]:
             axes[i, j].set_title(f"{var} (kg C m-2)")
+        elif var == "CUE":
+            axes[i, j].set_title(f"{var} (unitless)")  # Handle CUE separately
         else:   
             axes[i, j].set_title(f"{var} ({data[var].units})")
         axes[i, j].grid(True)
@@ -178,11 +252,18 @@ for i, var in enumerate(plot_variables):
             axes[i, j].set_xlabel('Time')
         if j == 0:
             axes[i, j].set_ylabel('')
+        if var == 'TLAI':
+            #add legend on right side of the plot
+            axes[i, j].legend(loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0.)            
 
 plt.tight_layout(rect=[0, 0, 1, 0.96])
 output_filename = f"figs/Point_Timeseries_{case_name}"
 if process_last_10_years:
     output_filename += "_last10years"
+if plot_structure:
+    output_filename += "_structure" 
+else:
+    output_filename += "_survival"
 output_filename += ".png"
 plt.savefig(output_filename)
 
