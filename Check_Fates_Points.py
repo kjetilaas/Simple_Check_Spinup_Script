@@ -8,6 +8,7 @@ print('Starting CheckFates_Points')
 # File names. Modify manually!
 #case_name = 'i1850.FATES-NOCOMP-LUH2-evolve.ne30pg3_tn14.alpha09a.20250321'
 case_name = 'i1850.FATES-NOCOMP-noLU_cal15_twosteam.ne30pg3_tn14.noresm3_0_alpha01.20250326'
+#case_name = 'i1850.FATES-NOCOMP-noLU.f45_f45_mg37.alpha09a.20250319'
 #case_name = 'n1850.ne30_tn14.hybrid_fates-nocomp.3.0a02.20250408'
 case_dir = f'/cluster/work/users/kjetisaa/archive/{case_name}/lnd/hist/'
 #case_dir = f'/cluster/work/users/tomast/archive/{case_name}/lnd/hist/'
@@ -120,28 +121,40 @@ for filename in files_to_read:
             if first_file:        
                 #print('Reading latitude and longitude')
                 lats = data['lat'].values
-                lons = data['lon'].values
+                lons = data['lon'].values   
+                area = data['area'].values #hacky way to get dimensions
                 first_file = False
 
+                #Check if grid is 1D or 2D
+                if area.ndim == 1:
+                    SE_grid = True
+                    print('SE grid')
+                elif area.ndim == 2:
+                    SE_grid = False
+                    print('2D grid')
+                
                 for loc, coords in locations.items():
                     lat = coords['lat']
                     lon = coords['lon']
                     # Find the absolute difference between the given lat/lon and the lat/lon values in the dataset
                     lat_diff = np.abs(lats - lat)
                     lon_diff = np.abs(lons - lon)
-                    # Find the index of the minimum difference for lat and lon, ignoring NaNs
-                    closest_idx = np.nanargmin(lat_diff + lon_diff)
-                    locations[loc]['closest_idx'] = closest_idx
-#print(f"{loc}: The index of the closest point is: {closest_idx}")
-                    #print(f"{loc}: Closest point is at: {lats[closest_idx]}, {lons[closest_idx]}")
-                    if 'landfrac' in data:                        
-                        landfrac = data['landfrac'][closest_idx].values
-                        #print(f"{loc}: Land fraction (landfrac) is: {landfrac}")
-                    if 'PCT_LANDUNIT' in data:
-                        pct_landunit = data['PCT_LANDUNIT'][:,:, closest_idx].values
-                        #print(f"{loc}: Percentage of each landunit (PCT_LANDUNIT) is: {pct_landunit}")
-                    if 'FATES_NOCOMP_PATCHAREA_PF' in data:
-                        pct_pft= data['FATES_NOCOMP_PATCHAREA_PF'][:,:, closest_idx].values
+
+                    if SE_grid:
+                        # Find the index of the minimum difference for lat and lon, ignoring NaNs
+                        closest_idx = np.nanargmin(lat_diff + lon_diff)
+                        locations[loc]['closest_idx'] = closest_idx
+                    else:
+                        # Find the x,y indices of the closest grid cell
+                        closest_idx = np.unravel_index(np.nanargmin(lat_diff[:, None] + lon_diff), (len(lats), len(lons)))
+                        locations[loc]['closest_idx'] = closest_idx
+
+                    if 'FATES_NOCOMP_PATCHAREA_PF' in data:                        
+                        if SE_grid:
+                            pct_pft= data['FATES_NOCOMP_PATCHAREA_PF'][:,:, closest_idx].values
+                        else:
+                            pct_pft= data['FATES_NOCOMP_PATCHAREA_PF'][:, :, closest_idx[0], closest_idx[1]].values
+                        
                         pct_pft_str = ', '.join([f"{p:.2f}" for p in pct_pft.flatten()])
                         #print(f"{loc}: Percentage PFT is: {pct_pft_str}")
                         #print(f'{loc}: Dominant PFT is: {pft_names[np.argmax(pct_pft[-1])]}, {np.max(pct_pft[-1]*100):.2f} %')
@@ -155,11 +168,20 @@ for filename in files_to_read:
                 for var in variables:
                     if var in data:  # Check if the variable exists in the dataset
                         var_data = data[var]
-                        # Check if the variable has more than 2 dimensions
-                        if var_data.ndim > 2:
-                            # Sum over the second dimension                            
-                            var_data = var_data.sum(axis=1)
-                        var_data = var_data[:, closest_idx]
+
+                        #TODO: rewrite this part, to not hardcode the dimensions to sum over!
+                        if SE_grid:
+                            # Check if the variable has more than 2 dimensions
+                            if var_data.ndim > 2:
+                                # Sum over the second dimension                            
+                                var_data = var_data.sum(axis=1)
+                            var_data = var_data[:, closest_idx]
+                        else:
+                            # Check if the variable has more than 3 dimensions
+                            if var_data.ndim > 3:
+                                # Sum over the third dimension                            
+                                var_data = var_data.sum(axis=1)                                
+                            var_data = var_data[:, closest_idx[0], closest_idx[1]]
                         results[loc][var].append(var_data.values)
                     #else:
                         #print(f"Warning: Variable '{var}' not found in file {filename}. Skipping.")
