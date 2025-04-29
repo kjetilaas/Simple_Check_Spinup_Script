@@ -7,36 +7,39 @@ print('Starting CheckFates_Points')
 
 # File names. Modify manually!
 #case_name = 'i1850.FATES-NOCOMP-LUH2-evolve.ne30pg3_tn14.alpha09a.20250321'
-case_name = 'i1850.FATES-NOCOMP-noLU_cal15_twosteam.ne30pg3_tn14.noresm3_0_alpha01.20250326'
+#case_name = 'i1850.FATES-NOCOMP-noLU_cal15_twosteam.ne30pg3_tn14.noresm3_0_alpha01.20250326' #100-yr spinup, cal15
+case_name = 'i1850.FATES-NOCOMP.ne16pg3_ne16pg3_mtn14.noresm3_0_alpha02.20250423'
 #case_name = 'i1850.FATES-NOCOMP-noLU.f45_f45_mg37.alpha09a.20250319'
 #case_name = 'n1850.ne30_tn14.hybrid_fates-nocomp.3.0a02.20250408'
 case_dir = f'/cluster/work/users/kjetisaa/archive/{case_name}/lnd/hist/'
-#case_dir = f'/cluster/work/users/tomast/archive/{case_name}/lnd/hist/'
 #case_dir = f'/cluster/work/users/kjetisaa/noresm/{case_name}/run/'
+#case_dir = f'/cluster/work/users/tomast/archive/{case_name}/lnd/hist/'
 #case_dir = f'/cluster/work/users/tomast/noresm/{case_name}/run/'
 
-obs_dir = f'/cluster/home/kjetisaa/OBS_ILAMB/lai/'
+obs_dir_lai = f'/cluster/home/kjetisaa/OBS_ILAMB/lai/'
 
 
 # Option to process only the last 10 years, only works for monthly data
 process_last_10_years = True
 
+calc_annual = False
+
 # Find all timeseries files
 timeseries_files = sorted(glob.glob(f'{case_dir}/{case_name}.clm2.h0.*-*.nc'))
-
-calc_annual = False
-if len(timeseries_files) > 120 and not process_last_10_years:
-    calc_annual = True
-    print(f"Calculating annual means for {len(timeseries_files)} files.")
 
 if process_last_10_years:
     # Filter files to include only the last 10 years
     timeseries_files = timeseries_files[-120:]  # Assuming monthly data, 10 years = 120 months
 
 plot_structure = False
+plot_dim1 = True
 if plot_structure:
     variables = ["FATES_NPLANT_SZ","FATES_NCOHORTS", "FATES_NPATCHES", "TLAI","TOTECOSYSC", 
-    "FATES_NONSTRUCTC", "FATES_STRUCTC"]
+    "FATES_NONSTRUCTC", "FATES_STRUCTC","FATES_BA_WEIGHTED_HEIGHT","FATES_CA_WEIGHTED_HEIGHT"]
+elif plot_dim1:
+    variables = ["TLAI", "RAIN", "SNOW", "TBOT", "FATES_GPP", "FATES_NPP", "BTRAN", "SOILWATER_10CM", "TOTSOMC", 
+                 "FATES_GROWTH_RESP", "FATES_MAINT_RESP", "FATES_COLD_STATUS", "FATES_STOREC_TF","FATES_CA_WEIGHTED_HEIGHT", 
+                   "FATES_MORTALITY_CFLUX_CANOPY", "FATES_MORTALITY_CFLUX_USTORY"]
 else:
     variables = ["TLAI", "FATES_GPP", "FATES_NPP", "BTRAN", "SOILWATER_10CM", "TOTSOMC", "FATES_GROWTH_RESP", "FATES_MAINT_RESP", "FATES_MORTALITY_BACKGROUND_SZ", 
     "FATES_MORTALITY_CSTARV_SZ", "FATES_MORTALITY_FREEZING_SZ", "FATES_MORTALITY_HYDRAULIC_SZ", 
@@ -182,7 +185,21 @@ for filename in files_to_read:
                                 # Sum over the third dimension                            
                                 var_data = var_data.sum(axis=1)                                
                             var_data = var_data[:, closest_idx[0], closest_idx[1]]
+
+                        # Unit conversion
+                        if hasattr(var_data, 'units'):
+                            if var_data.units == 'mm/s':
+                                var_data = var_data * 86400  # Convert mm/s to mm/d
+                                var_data.attrs['units'] = 'mm/d'
+                            elif var_data.units == 'K':
+                                var_data = var_data - 273.15  # Convert K to Celsius
+                                var_data.attrs['units'] = 'C'
+
                         results[loc][var].append(var_data.values)
+                        #results[loc][var].append(var_data.units)
+                        #print(var, var_data)
+                        #print(var, var_data.units)                        
+                        #print(results[loc][var].append(var_data.values))
                     #else:
                         #print(f"Warning: Variable '{var}' not found in file {filename}. Skipping.")
                     
@@ -259,17 +276,17 @@ for loc in locations:
         print(f"FATES_VEGC-FATES_TOTVEGC: {results[loc]['FATES_VEGC'] - results[loc]['FATES_TOTVEGC']}")
 
 # Define the observational datasets and their file paths
-obs_datasets = {
-    'AVH15C1': f'{obs_dir}AVH15C1/lai.nc',
-    'AVHRR': f'{obs_dir}AVHRR/lai_0.5x0.5.nc',
-    'GIMMS_LAI4g': f'{obs_dir}GIMMS_LAI4g/cao2023_lai.nc',
-    'MODIS': f'{obs_dir}MODIS/lai_0.5x0.5.nc'
+lai_obs_datasets = {
+    'AVH15C1': f'{obs_dir_lai}AVH15C1/lai.nc',
+    'AVHRR': f'{obs_dir_lai}AVHRR/lai_0.5x0.5.nc',
+    'GIMMS_LAI4g': f'{obs_dir_lai}GIMMS_LAI4g/cao2023_lai.nc',
+    'MODIS': f'{obs_dir_lai}MODIS/lai_0.5x0.5.nc'
 }
 
 # Read and process all observational LAI datasets
-obs_lai_results = {obs_name: {} for obs_name in obs_datasets.keys()}
+obs_lai_results = {obs_name: {} for obs_name in lai_obs_datasets.keys()}
 
-for obs_name, obs_file in obs_datasets.items():
+for obs_name, obs_file in lai_obs_datasets.items():
     try:
         with xr.open_dataset(obs_file, engine='netcdf4') as obs_data:
             obs_lai = obs_data['lai']  # Variable lai(time, lat, lon)
