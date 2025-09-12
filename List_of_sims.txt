@@ -1,0 +1,30 @@
+# File names. Modify manually!
+#case_name = 'n1850esm.ne30pg3_tn14.hybrid_fates-nocomp.3.0a06a_nlFix2.20250623'
+#case_name = 'i1850.f45_f45_mg37.fatesnocomp.ctsm5.3.045_noresm_v0.NOpotveg_coldstart_api40_16pft_v20.20250624'
+#case_name = 'i2000.CRUJRA0.5_Scandinavia_nocomp'
+#case_name = 'i1850.f45_f45_mg37.fatesnocomp.noresm3_0_alpha03c.potveg_coldstart.20250602'
+#case_name = 'n1850.ne30_tn14.CTSM_cplhist.3.0a02.20250429'
+#case_name = 'i1850.FATES-NOCOMP.ne30pg3_tn14.noresm3_0_alpha03.20250423'
+#case_name = 'n1850.ne30_tn14.hybrid_fates-nocomp.3.0a02.20250408'
+#case_name = 'n1850.ne30_tn14.hybrid_fatessp.3.0a01.20250404'
+#case_name = 'n1850.ne30_tn14.cplhist.3_0_a03b.20250606'
+#case_name = 'i1850.ne30pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v9.CPLHIST_LUH3_ConstLU_coldstart_v21_wFCO2.20250628'
+
+#n1850.ne30_tn14.noresm3_0_beta01-FATES-noluh.20250630
+
+#Param tests NorESM3b01, ne16 version
+case_names = [ #'i1850.ne16pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v9.CRUJRA_noLU_coldstart_v21.20250703'# ,
+            #'i1850.ne16pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v9.CRUJRA_noLU_coldstart_v21_wSeedRain01.20250703' ,
+            #'i1850.ne16pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v9.CRUJRA_noLU_coldstart_v22.20250703',
+            #'i2000.ne16pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v9.CRUJRA_noLU_coldstart_v21.20250703'#,
+            #'i1850.ne16pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v9.CRUJRA_noLU_coldstart_v21_atkin2017.20250703',
+            #'i1850.ne16pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v9.CRUJRA_noLU_coldstart_v21_wSeedRain_p1.20250708'
+            
+            'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S2_TRENDY2025_pt1.202508011'
+            ]
+
+#Param tests 
+#case_names = [
+#    'i1850.f45_f45_mg37.fatesnocomp.ctsm5.3.045_noresm_v0.NOpotveg_coldstart_api40_16pft_v20.20250624',
+#    'i1850.f45_f45_mg37.fatesnocomp.ctsm5.3.045_noresm_v0.NOpotveg_coldstart_api40_16pft.20250617',
+#    'i1850.f45_f45_mg37.fatesnocomp.ctsm5.3.045_noresm_v0.NOpotveg_coldstart_api40_16pft.20250625']
