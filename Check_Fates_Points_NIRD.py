@@ -10,10 +10,11 @@ user='kjetisaa'  # Change to your username
 #user='rosief'  # Change to your username
 
 case_names = [
-            'i1850.ne30pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v10.CPLHIST_noLU_coldstart_v25u.20250905'
+            #'i1850.ne30pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v10.CPLHIST_noLU_coldstart_v25u.20250905'
+            'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_corrected.202508024'
             ]
 
-outpath = f'/datalake/NS9560K/www/diagnostics/noresm/{user}/{case_names[0]}'
+outpath = f'/datalake/NS9560K/www/diagnostics/noresm/{user}/TRENDY25/{case_names[0]}'
 
 #if outpath dir excist 
 if not os.path.exists(outpath):
@@ -22,17 +23,17 @@ if not os.path.exists(outpath):
 #outpath = f'/datalake/NS9560K/www/diagnostics/noresm/kjetisaa/TRENDY25/{case_names[0]}'
 
 # Locations
-plot_region = 'Arctic'# 'Norway', 'Nordic', 'Global', 'Biased', 'Boreal', 'Arctic'
+plot_region = 'Norway'# 'Norway', 'Nordic', 'Global', 'Biased', 'Boreal', 'Arctic'
 
 # Set plotting options
-plot_varset = 'ilamb' # 'ilamb', 'dust', 'structure', 'dim1', 'seed', 'NBP', 'PFT'
+plot_varset = 'NBP' # 'ilamb', 'dust', 'structure', 'dim1', 'seed', 'NBP', 'PFT'
 
 # Option to process only the last 10 years, only works for monthly data
-process_last_10_years = True
+process_last_10_years = False
 process_first_n_years = False
 first_n_years = 1
-process_selected_years = False
-select_yr_range = [98, 100]
+process_selected_years = True
+select_yr_range = [45, 55]
 
 calc_annual = False
 
@@ -96,8 +97,8 @@ for case_name in case_names:
 
     # If 'i' case, use kjetisaa, else use noresm3
     if case_name.startswith('i'):
-        case_dir = f'/nird/datalake/NS9560K/{user}/{case_name}/lnd/hist/'
-#        case_dir = f'/nird/datalake/NS9560K/kjetisaa/TRENDY25/{case_name}/lnd/hist/'
+#        case_dir = f'/nird/datalake/NS9560K/{user}/{case_name}/lnd/hist/'
+        case_dir = f'/nird/datalake/NS9560K/kjetisaa/TRENDY25/{case_name}/lnd/hist/'
     else:
         case_dir = f'/nird/datalake/NS9560K/noresm3/cases/{case_name}/lnd/hist/'
 
@@ -137,7 +138,7 @@ for case_name in case_names:
                     "FATES_MORTALITY_CFLUX_CANOPY", "FATES_MORTALITY_CFLUX_USTORY"]                   
     elif plot_varset == 'NBP':
         variables = ["FCO2", "TLAI", "FATES_GPP", "FATES_NPP", "HR", "FATES_NPLANT_PF", "FATES_MORTALITY_PF", 
-        "FATES_MORTALITY_CSTARV_SZ", 
+        "FATES_MORTALITY_CSTARV_SZ", "FATES_MORTALITY_LOGGING_SZ", "FATES_MORTALITY_FIRE_SZ",
         "FATES_MORTALITY_BACKGROUND_SZ", "FATES_MORTALITY_FREEZING_SZ", "FATES_MORTALITY_HYDRAULIC_SZ", "FATES_MORTALITY_AGESCEN_SZ", "FATES_MORTALITY_SENESCENCE_SZ",
         "FATES_GROWTH_RESP", "FATES_MAINT_RESP", "FATES_STOREC_TF", "FATES_NONSTRUCTC", "FATES_STRUCTC", "TOTSOMC_1m", "FATES_CA_WEIGHTED_HEIGHT"]
     elif plot_varset == 'PFT':
@@ -230,7 +231,10 @@ for case_name in case_names:
     elif plot_region == 'Norway':
         # Plot locations in Norway   
         locations = {
-            'Hurdal': {'lat': 60.4, 'lon': 11.1},  # Hurdal, Norway        
+            'Hurdal': {'lat': 60.4, 'lon': 11.1},  # Hurdal, Norway
+            'Oslo': {'lat': 59.9, 'lon': 10.8},  # Oslo, Norway
+            'Bergen': {'lat': 60.4, 'lon': 5.3},  # Bergen, Norway
+            'Trondheim': {'lat': 63.4, 'lon': 10.4},  # Trondheim, Norway
             'Iskoras': {'lat': 69.1, 'lon': 25.0},  # Iskoras, Norway
             'Finse': {'lat': 60.6, 'lon': 7.5}  # Finse, Norway
         }
