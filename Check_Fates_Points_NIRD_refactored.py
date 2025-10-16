@@ -1,6 +1,8 @@
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 import glob
 import os
 
@@ -30,7 +32,7 @@ case_names = [
 ]
 
 trendy_flag = False  # If True, use TRENDY file naming and paths
-key_noresmflag = False  # If True, use noresm file naming and paths
+key_noresmflag = True  # If True, use noresm file naming and paths
 
 # Land Use forcing file configuration
 lu_forcing_dir = '/nird/datalake/NS9560K/kjetisaa/LU_forcing_copy/'
@@ -53,7 +55,7 @@ plot_region = 'South_America'  # 'Norway', 'Nordic', 'Global', 'Biased', 'Boreal
 plot_varset = 'ilamb'      # 'ilamb', 'dust', 'structure', 'dim1', 'seed', 'NBP', 'PFT', 'LU', 'mortality', 'size_class'
 
 # Time filtering options
-process_last_10_years = True
+process_last_10_years = False
 process_first_n_years = False
 first_n_years = 1
 process_selected_years = False
@@ -100,7 +102,7 @@ def get_variable_list(varset):
     """Get list of variables based on plot_varset"""
     variable_sets = {
         'ilamb': ["TLAI", "FATES_GPP", "FATES_VEGC", "TOTSOMC_1m", "TSA", "RAIN+SNOW", 
-                 "FSH", "QRUNOFF", "EFLX_LH_TOT", "FSR", "FSDS", "H2OSNO"],
+                 "FSH", "EFLX_LH_TOT", "FSR", "FSDS", "H2OSNO"],
         'dust': ["TLAI", "SOILWATER_10CM", "U10_DUST", "DSTFLXT", "DSTDEP", "FATES_CA_WEIGHTED_HEIGHT"],
         'structure': ["FATES_NPLANT_SZ", "FATES_NCOHORTS", "FATES_NPATCHES", "TLAI", "TOTECOSYSC",
                      "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_BA_WEIGHTED_HEIGHT", "FATES_CA_WEIGHTED_HEIGHT"],
@@ -318,10 +320,69 @@ def convert_obs_units(obs_field, obs_name):
         
     return obs_field
 
+def get_multiple_obs_datasets():
+    """Parse observational datasets from available data and organize by variable type"""
+    obs_datasets_multi = {
+        'tas': [
+            'tas/CRU4.07-1900/tas.nc',
+            'tas/CRU4.02/tas.nc'
+        ],
+        'pr': [
+            'pr/CMAPv1904/pr.nc',
+            'pr/CLASS/pr.nc',
+            'pr/GPCCv2018/pr.nc',
+            'pr/GPCPv2.3/pr.nc'
+        ],
+        'lai': [
+            'lai/MODIS/lai_0.5x0.5.nc',
+            'lai/AVHRR/lai_0.5x0.5.nc',
+            'lai/AVH15C1/lai.nc',
+            'lai/GIMMS_LAI4g/cao2023_lai.nc'
+        ],
+        'gpp': [
+            'gpp/FLUXCOM/gpp.nc',
+            'gpp/WECANN/gpp.nc'
+        ],
+        'biomass': [
+            'biomass/ESACCI/biomass.nc',
+            'biomass/GEOCARBON/biomass.nc',
+            'biomass/NBCD2000/biomass_0.5x0.5.nc',
+            'biomass/Saatchi2011/biomass_0.5x0.5.nc',
+            'biomass/Thurner/biomass_0.5x0.5.nc',
+            'biomass/USForest/biomass_0.5x0.5.nc',
+            'biomass/XuSaatchi2021/XuSaatchi.nc'
+        ],
+        'cSoil': [
+            'cSoil/HWSD2/hwsd2_cSoil.nc',
+            'cSoil/Wang2024/wang2024_cSoil.nc'
+        ],
+        'hfss': [
+            'hfss/FLUXCOM/hfss.nc',
+            'hfss/CLASS/hfss.nc',
+            'hfss/WECANN/hfss.nc'
+        ],
+        'hfls': [
+            'hfls/FLUXCOM/hfls.nc',
+            'hfls/CLASS/hfls.nc',
+            'hfls/WECANN/hfls.nc'
+        ],
+        'swe': [
+            'swe/CanSISE/swe.nc'
+        ],
+        'rsds': [
+            'rsds/CERESed4.2/rsds.nc',
+            'rsds/GEWEX.SRB/rsds_0.5x0.5.nc'
+        ],
+        'rsus': [
+            'rsus/CERESed4.2/rsus.nc',
+            'rsus/GEWEX.SRB/rsus_0.5x0.5.nc'
+        ]
+    }
+    
+    return obs_datasets_multi
+
 def get_bin_info(var_type):
     """Get bin colors and labels based on FATES size classes or age bins"""
-    import matplotlib.cm as cm
-    import matplotlib.colors as mcolors
     
     if var_type == 'size':
         # FATES size class bin edges in cm
@@ -500,44 +561,77 @@ if not os.path.exists(outpath):
 
 obs_dir_ilamb = '/nird/datalake/NS9560K/diagnostics/ILAMB-Data/DATA/'
 if plot_ilamb:
-    obs_datasets = {
-        'tas': f'{obs_dir_ilamb}tas/CRU4.07-1900/tas.nc',
-        'pr': f'{obs_dir_ilamb}pr/CMAPv1904/pr.nc',
-        'lai': f'{obs_dir_ilamb}lai/MODIS/lai_0.5x0.5.nc',
-        'gpp': f'{obs_dir_ilamb}gpp/FLUXCOM/gpp.nc',
-        'biomass': f'{obs_dir_ilamb}biomass/ESACCI/biomass.nc',
-        'cSoil': f'{obs_dir_ilamb}cSoil/HWSD2/hwsd2_cSoil.nc',
-        'hfss': f'{obs_dir_ilamb}hfss/FLUXCOM/hfss.nc',
-        'hfls': f'{obs_dir_ilamb}hfls/FLUXCOM/hfls.nc',
-        'swe': f'{obs_dir_ilamb}swe/CanSISE/swe.nc',
-        'rsds': f'{obs_dir_ilamb}rsds/CERESed4.2/rsds.nc',
-        'rsus': f'{obs_dir_ilamb}rsus/CERESed4.2/rsus.nc'
-    }
+    # Get multiple observational datasets for each variable
+    obs_datasets_multi = get_multiple_obs_datasets()
+    
+    # Create a single obs_datasets dict with unique names for each dataset
+    obs_datasets = {}
+    for var_name, file_list in obs_datasets_multi.items():
+        for file_path in file_list:
+            # Extract dataset name from file path (e.g., "CRU4.07-1900" from "tas/CRU4.07-1900/tas.nc")
+            dataset_name = file_path.split('/')[1] if '/' in file_path else file_path.split('.')[0]
+            unique_name = f"{var_name}_{dataset_name}"
+            obs_datasets[unique_name] = f'{obs_dir_ilamb}{file_path}'
 else:
     obs_datasets = {
         'AVHRR': f'{obs_dir_ilamb}lai/AVHRR/lai_0.5x0.5.nc',
         'MODIS': f'{obs_dir_ilamb}lai/MODIS/lai_0.5x0.5.nc'
     }
 
+# Create a mapping from unique obs names back to variable names
+obs_name_to_var = {}
+if plot_ilamb:
+    for var_name, file_list in obs_datasets_multi.items():
+        for file_path in file_list:
+            dataset_name = file_path.split('/')[1] if '/' in file_path else file_path.split('.')[0]
+            unique_name = f"{var_name}_{dataset_name}"
+            obs_name_to_var[unique_name] = var_name
+
 obs_results = {obs_name: {} for obs_name in obs_datasets.keys()}
 
 for obs_name, obs_file in obs_datasets.items():
     try:
         with xr.open_dataset(obs_file, engine='netcdf4') as obs_data:
-            # For ILAMB, variable name matches obs_name; for LAI, use 'lai'
+            # For ILAMB, determine variable name from the obs_name
             if plot_ilamb:
-                obs_var = obs_name
-                if obs_var in obs_data:
-                    obs_field = obs_data[obs_var]
+                if obs_name in obs_name_to_var:
+                    var_name = obs_name_to_var[obs_name]
                 else:
-                    obs_field = list(obs_data.data_vars.values())[0]
+                    var_name = obs_name.split('_')[0]  # fallback
+                
+                # Try different variable name variations
+                possible_vars = [var_name, obs_name]
+                if var_name == 'cSoil':
+                    possible_vars.extend(['soilc', 'csoil', 'cSoil'])
+                if var_name == 'gpp':
+                    possible_vars.extend(['GPP'])
+                
+                obs_field = None
+                for var_candidate in possible_vars:
+                    if var_candidate in obs_data:
+                        obs_field = obs_data[var_candidate]
+                        break
+                
+                if obs_field is None:
+                    # Take the first data variable if no exact match
+                    data_vars = list(obs_data.data_vars.keys())
+                    if data_vars:
+                        obs_field = obs_data[data_vars[0]]
+                        print(f"Warning: Using variable '{data_vars[0]}' for {obs_name}")
+                    else:
+                        print(f"Warning: No data variables found in {obs_name}")
+                        continue
             else:
                 obs_field = obs_data['lai']
+                
             obs_lats = obs_data['lat'].values
             obs_lons = obs_data['lon'].values
             
             # Convert units
-            obs_field = convert_obs_units(obs_field, obs_name)
+            if plot_ilamb and obs_name in obs_name_to_var:
+                obs_field = convert_obs_units(obs_field, obs_name_to_var[obs_name])
+            else:
+                obs_field = convert_obs_units(obs_field, obs_name)
             
             # Calculate climatology
             if 'time' in obs_field.dims:
@@ -1066,34 +1160,45 @@ for case_name in case_names:
                     var_data = results[loc][var_or_group]
                     var_units = units[loc].get(var_or_group, 'unknown units')
                     
-                    # Plot with proper time axis if available, otherwise use indices
-                    if len(plot_time) == len(var_data):
-                        axes[i, j].plot(plot_time, var_data, label='Model', linewidth=2)
-                    else:
-                        axes[i, j].plot(var_data, label='Model', linewidth=2)
-
-                    # Plot obs if available for this variable/location
+                    # FIRST: Plot obs if available for this variable/location (so they appear behind model)
                     if plot_ilamb:
                         obs_var = sim_to_ilamb.get(var_or_group, None)
-                        if obs_var and obs_var in obs_results and loc in obs_results[obs_var]:
-                            obs_data = obs_results[obs_var][loc]
-                            if obs_data is not None and np.all(obs_data < 1e30):
-                                if obs_data.ndim == 1 and len(var_data) > 0:
-                                    if len(obs_data) < 12:
-                                        axes[i, j].axhline(np.mean(obs_data), color='C1', linestyle='--', 
-                                                         label=f'ILAMB {obs_var}', linewidth=2)
-                                    else:
-                                        obs_repeats = int(len(var_data) / 12)
-                                        obs_plot = np.tile(obs_data, obs_repeats)
-                                        if len(plot_time) == len(obs_plot):
-                                            axes[i, j].plot(plot_time, obs_plot, label=f'ILAMB {obs_var}', linestyle='--', linewidth=2)
+                        if obs_var:
+                            # Find all observational datasets for this variable
+                            matching_obs = [obs_name for obs_name in obs_results.keys() 
+                                          if obs_name.startswith(f"{obs_var}_") and loc in obs_results[obs_name]]
+                            
+                            # Use different colors and line styles for multiple obs datasets
+                            colors = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
+                            linestyles = ['--', '-.', ':', '--', '-.', ':', '--', '-.', ':']
+                            
+                            for idx, obs_name in enumerate(matching_obs):
+                                obs_data = obs_results[obs_name][loc]
+                                if obs_data is not None and np.all(obs_data < 1e30):
+                                    # Extract dataset name for label (remove variable prefix)
+                                    dataset_name = obs_name.replace(f"{obs_var}_", "")
+                                    color = colors[idx % len(colors)]
+                                    linestyle = linestyles[idx % len(linestyles)]
+                                    
+                                    if obs_data.ndim == 1 and len(var_data) > 0:
+                                        if len(obs_data) < 12:
+                                            axes[i, j].axhline(np.mean(obs_data), color=color, linestyle=linestyle, 
+                                                             label=f'{dataset_name}', linewidth=2)
                                         else:
-                                            axes[i, j].plot(obs_plot, label=f'ILAMB {obs_var}', linestyle='--', linewidth=2)
-                                elif obs_data.ndim == 0:
-                                    axes[i, j].axhline(obs_data, color='C1', linestyle='--', 
-                                                     label=f'ILAMB {obs_var}', linewidth=2)
-                                if obs_var == 'cSoil':
-                                    axes[i, j].set_ylim(0, 50)
+                                            obs_repeats = int(len(var_data) / 12)
+                                            obs_plot = np.tile(obs_data, obs_repeats)
+                                            if len(plot_time) == len(obs_plot):
+                                                axes[i, j].plot(plot_time, obs_plot, label=f'{dataset_name}', 
+                                                               linestyle=linestyle, linewidth=2, color=color)
+                                            else:
+                                                axes[i, j].plot(obs_plot, label=f'{dataset_name}', 
+                                                               linestyle=linestyle, linewidth=2, color=color)
+                                    elif obs_data.ndim == 0:
+                                        axes[i, j].axhline(obs_data, color=color, linestyle=linestyle, 
+                                                         label=f'{dataset_name}', linewidth=2)
+                                    
+                            if obs_var == 'cSoil':
+                                axes[i, j].set_ylim(0, 50)
                     else:
                         # Only plot obs for TLAI
                         if var_or_group == 'TLAI' and 2==2:
@@ -1124,6 +1229,12 @@ for case_name in case_names:
                                             axes[i, j].plot(plot_time, obs_plot, label=obs_name, linestyle='--', linewidth=2)
                                         else:
                                             axes[i, j].plot(obs_plot, label=obs_name, linestyle='--', linewidth=2)
+
+                    # SECOND: Plot model data on top (so it's always visible)
+                    if len(plot_time) == len(var_data):
+                        axes[i, j].plot(plot_time, var_data, label='Model', linewidth=2, color='black', zorder=5)
+                    else:
+                        axes[i, j].plot(var_data, label='Model', linewidth=2, color='black', zorder=5)
                                         
                     axes[i, j].set_title(f"{var_or_group} ({var_units})")
                     axes[i, j].grid(True)
@@ -1149,9 +1260,17 @@ for case_name in case_names:
             if j == 0:
                 axes[i, j].set_ylabel('')
 
-            # Only add legend for the first subplot (if not bin variable)
-            if i == 0 and j == 0 and not (plot_by_size_and_age and var_or_group in plot_groups):
-                axes[i, j].legend(loc='upper left', fontsize=12, frameon=True)
+            # Add legend logic based on plot type and location
+            if j == 0:  # First location only
+                if plot_by_size_and_age and var_or_group in plot_groups:
+                    # For bin variables, legend is handled separately above
+                    pass
+                elif plot_ilamb:
+                    # For ILAMB plots, add legend for all variables in first location
+                    axes[i, j].legend(loc='upper left', fontsize=10, frameon=True)
+                elif i == 0:
+                    # For non-ILAMB plots, only add legend to first subplot
+                    axes[i, j].legend(loc='upper left', fontsize=12, frameon=True)
 
     # Create the suptitle with location names, coordinates, and dominant PFT info
     def loc_title(loc, coords):
