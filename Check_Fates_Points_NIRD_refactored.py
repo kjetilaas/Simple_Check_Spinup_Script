@@ -5,31 +5,28 @@ import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import glob
 import os
+import argparse
 
 print('Starting CheckFates_Points (Refactored Version)')
+
+# ============================================================================
+# COMMAND LINE ARGUMENTS
+# ============================================================================
+# Example usage:
+# python Check_Fates_Points_NIRD_refactored.py /datalake/NS9560K/noresm3/cases/n1850.ne16pg3_tn14.hybrid_fates-nocomp.noresm3_0_beta03a.2025-10-10 -o /datalake/NS9560K/www/diagnostics/noresm/kjetisaa/NorESM_Key_Simulations/
+
+parser = argparse.ArgumentParser(description='Generate point timeseries plots for FATES model output')
+parser.add_argument('case_name', help='Case name or full path to case directory (e.g., "case_name" or "/path/to/case")')
+parser.add_argument('--output', '-o', default='figs/', help='Optional output base directory (default: figs/)')
+
+args = parser.parse_args()
 
 # ============================================================================
 # CONFIGURATION SECTION
 # ============================================================================
 
 user = 'kjetisaa'
-case_names = [
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_secm2secy_SHORT.2025-10-07'
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_secm2zero_SHORT.2025-10-07'
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_secYandM2zero_SHORT.2025-10-07'
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_AllSecHarv2zero_SHORT.2025-10-08'
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_AllHarvestToZero_SHORT.2025-10-08'    
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_corrected.202508024'
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_loggingFix.20251001'
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S0_TRENDY2025_pt3.202508021'
-    #'i1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.PostADspinup_paramV26j_fatesparamV26i.2025-09-24'
-
-    #'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt3_SecAge20_SHORT.2025-10-13'
-
-    'n1850.ne16pg3_tn14.hybrid_fates-nocomp.noresm3_0_beta03a.2025-10-10'
-    #'n1850.ne16_tn14.noresm3_0_beta03_rafsipmasstonum.20250930'
-    #'i1850.ne16pg3_tn14.fatesnocomp.ctsm5.3.045_noresm_v13.CPLHIST_noLU_paramV26j_fatesparamV26i.2025-10-08'
-]
+case_names = [args.case_name]  # Use command line argument
 
 trendy_flag = False  # If True, use TRENDY file naming and paths
 key_noresmflag = True  # If True, use noresm file naming and paths
@@ -38,20 +35,18 @@ key_noresmflag = True  # If True, use noresm file naming and paths
 lu_forcing_dir = '/nird/datalake/NS9560K/kjetisaa/LU_forcing_copy/'
 lu_forcing_file = 'LUH2_timeseries_to_surfdata_1.9x2.5_250723_cdf5.nc'
 
-# Output path
-if trendy_flag:
-    outpath = f'/datalake/NS9560K/www/diagnostics/noresm/{user}/TRENDY25/{case_names[0]}'
-elif key_noresmflag:
-    outpath = f'/datalake/NS9560K/www/diagnostics/noresm/{user}/NorESM_Key_Simulations/{case_names[0]}'
-else:
-    outpath = f'/datalake/NS9560K/www/diagnostics/noresm/{user}/{case_names[0]}'
+# Extract just the case name without path for output directory
+case_name_only = os.path.basename(args.case_name)
+
+# Output path: optional_path/case/Point_Plots/
+outpath = os.path.join(args.output, case_name_only, 'Point_Plots')
 
 if not os.path.exists(outpath):
-    print(f'Could not find outpath: {outpath}, use figs/ instead')
-    outpath = 'figs/'
+    print(f'Creating output directory: {outpath}')
+    os.makedirs(outpath, exist_ok=True)
 
 # Plotting options
-plot_region = 'South_America'  # 'Norway', 'Nordic', 'Global', 'Biased', 'Boreal', 'Arctic', 'Dust', 'Spikes'
+plot_regions = ['South_America', 'Global', 'Boreal', 'Arctic']  # List of regions to plot - 'Norway', 'Nordic', 'Global', 'Biased', 'Boreal', 'Arctic', 'Dust', 'Spikes'
 plot_varset = 'ilamb'      # 'ilamb', 'dust', 'structure', 'dim1', 'seed', 'NBP', 'PFT', 'LU', 'mortality', 'size_class'
 
 # Time filtering options
@@ -60,14 +55,15 @@ process_first_n_years = False
 first_n_years = 1
 process_selected_years = False
 select_yr_range = [0, 3]  # Assumes 12 files pr year, and where zero is first year of simulation (regarless of start year)
-calc_annual = False
+calc_annual = False  # Will be automatically set to True for long time series (>30 years)
+create_seasonal_plot = True  # Create additional seasonal cycle plot for long time series
 
 # PFT options
 plot_by_pft = False
 pft_number = 1  # zero indexed
 
 # Size class and age bin options
-plot_by_size_and_age = True  # If True, plot size class variables (_SZ) and age bin variables (_AP) as separate lines instead of summing
+plot_by_size_and_age = False  # If True, plot size class variables (_SZ) and age bin variables (_AP) as separate lines instead of summing
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -78,31 +74,16 @@ def get_year_label(model_time=None):
     if model_time is not None and len(model_time) > 0:
         start_year = model_time[0].year
         end_year = model_time[-1].year
-        
-        if process_last_10_years:
-            return f"Last10years_{start_year}-{end_year}"
-        elif process_first_n_years:
-            return f"First{first_n_years}years_{start_year}-{end_year}"
-        elif process_selected_years:
-            return f"Years_{start_year}-{end_year}"
-        else:
-            return f"AllYears_{start_year}-{end_year}"
+        return f"{start_year}-{end_year}"
     else:
-        # Fallback to original labels if no model time available
-        if process_last_10_years:
-            return "Last10years"
-        elif process_first_n_years:
-            return f"First{first_n_years}years"
-        elif process_selected_years:
-            return f"Years_{select_yr_range[0]}-{select_yr_range[1]}"
-        else:
-            return "AllYears"
+        # Fallback if no model time available
+        return "UnknownYears"
 
 def get_variable_list(varset):
     """Get list of variables based on plot_varset"""
     variable_sets = {
         'ilamb': ["TLAI", "FATES_GPP", "FATES_VEGC", "TOTSOMC_1m", "TSA", "RAIN+SNOW", 
-                 "FSH", "EFLX_LH_TOT", "FSR", "FSDS", "H2OSNO"],
+                 "FSH", "EFLX_LH_TOT"], #, "FSR", "FSDS", "H2OSNO"
         'dust': ["TLAI", "SOILWATER_10CM", "U10_DUST", "DSTFLXT", "DSTDEP", "FATES_CA_WEIGHTED_HEIGHT"],
         'structure': ["FATES_NPLANT_SZ", "FATES_NCOHORTS", "FATES_NPATCHES", "TLAI", "TOTECOSYSC",
                      "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_BA_WEIGHTED_HEIGHT", "FATES_CA_WEIGHTED_HEIGHT"],
@@ -547,9 +528,23 @@ sim_to_ilamb = {
     "FSDS": "rsds"
 }
 
-# Get variables and locations
+# Get variables and all locations from all regions
 variables = get_variable_list(plot_varset)
-locations = get_locations_dict(plot_region)
+
+# Collect all unique locations from all regions
+all_locations = {}
+for region in plot_regions:
+    region_locations = get_locations_dict(region)
+    for loc_name, coords in region_locations.items():
+        if loc_name not in all_locations:
+            all_locations[loc_name] = coords
+        
+print(f"Total unique locations across all regions: {len(all_locations)}")
+for region in plot_regions:
+    region_locs = get_locations_dict(region)
+    print(f"  {region}: {list(region_locs.keys())}")
+
+locations = all_locations
 
 # if outpath does not exist, create it    
 if not os.path.exists(outpath):
@@ -677,18 +672,32 @@ else:
 for case_name in case_names:
     print(f"Processing case: {case_name}")  
 
-    # If 'i' case, use kjetisaa, else use noresm3
-    if case_name.startswith('i') and trendy_flag:
-        case_dir = f'/nird/datalake/NS9560K/kjetisaa/TRENDY25/{case_name}/lnd/hist/'
-    elif case_name.startswith('i') and not trendy_flag:
-        case_dir = f'/nird/datalake/NS9560K/kjetisaa/{case_name}/lnd/hist/'            
+    # Extract just the case name without any path components for output naming
+    case_name_only = os.path.basename(case_name)
+    
+    # Use the case_name as provided (could be full path or just case name)
+    # If it's just a case name, assume it's in the standard locations
+    if os.path.isabs(case_name) or '/' in case_name:
+        # Case name includes path information
+        case_dir = os.path.join(case_name, 'lnd', 'hist')
+        if not os.path.exists(case_dir):
+            # Try without lnd/hist if the path doesn't exist
+            case_dir = case_name
     else:
-        case_dir = f'/nird/datalake/NS9560K/noresm3/cases/{case_name}/lnd/hist/'
+        # Case name only - use standard location logic
+        if case_name_only.startswith('i') and trendy_flag:
+            case_dir = f'/nird/datalake/NS9560K/kjetisaa/TRENDY25/{case_name_only}/lnd/hist/'
+        elif case_name_only.startswith('i') and not trendy_flag:
+            case_dir = f'/nird/datalake/NS9560K/kjetisaa/{case_name_only}/lnd/hist/'            
+        else:
+            case_dir = f'/nird/datalake/NS9560K/noresm3/cases/{case_name_only}/lnd/hist/'
 
     print(f"Case directory: {case_dir}")
+    print(f"Case name only: {case_name_only}")
+    print(f"Looking for timeseries files matching: {case_dir}/{case_name_only}.clm2.h0.*-*.nc")
 
     # Find all timeseries files
-    timeseries_files = sorted(glob.glob(f'{case_dir}/{case_name}.clm2.h0.*-*.nc'))
+    timeseries_files = sorted(glob.glob(f'{case_dir}/{case_name_only}.clm2.h0.*-*.nc'))
     print(f"Found {len(timeseries_files)} timeseries files.")
     if len(timeseries_files) == 0:
         print(f"No timeseries files found for case {case_name} in directory {case_dir}. Skipping to next case.")
@@ -870,6 +879,15 @@ for case_name in case_names:
     # Generate year label using actual model time
     first_loc_time = time[list(locations.keys())[0]]
     year_label = get_year_label(first_loc_time if len(first_loc_time) > 0 else None)
+    
+    # Determine if we should calculate annual averages based on data length
+    auto_calc_annual = False
+    num_years = len(first_loc_time) / 12 if len(first_loc_time) > 0 else 0
+    if num_years > 30 and not calc_annual:
+        auto_calc_annual = True
+        print(f"Data spans {num_years:.1f} years - automatically calculating annual averages for main plots")
+        if create_seasonal_plot:
+            print("Will also create seasonal cycle plots showing monthly climatology")
 
     # ============================================================================
     # INTEGRATE LAND USE DATA
@@ -1027,26 +1045,41 @@ for case_name in case_names:
             plot_variables.append("Mismatch")
 
 
-    # Calculate annual means if requested
-    if calc_annual:
+    # Store original monthly data for seasonal plots if needed
+    if auto_calc_annual and create_seasonal_plot:
+        monthly_results = {loc: {var: results[loc][var].copy() if var in results[loc] else np.array([]) 
+                               for var in plot_variables} for loc in locations}
+        monthly_time = {loc: time[loc].copy() for loc in locations}
+    
+    # Calculate annual means if requested or automatically determined
+    if calc_annual or auto_calc_annual:
         for loc in locations:
             # Handle regular variables
             for var in plot_variables:
                 if var in results[loc] and len(results[loc][var]) > 0:
-                    results[loc][var] = np.mean(results[loc][var].reshape(-1, 12), axis=1)
+                    # Ensure we have complete years
+                    n_complete_years = len(results[loc][var]) // 12
+                    if n_complete_years > 0:
+                        data_to_reshape = results[loc][var][:n_complete_years * 12]
+                        results[loc][var] = np.mean(data_to_reshape.reshape(-1, 12), axis=1)
             
             # Handle bin variables (size class and age bin) if they exist
             if plot_by_size_and_age:
-                bin_vars = [key for key in results[loc].keys() if '_SC' in key or '_AP' in key]
+                bin_vars = [key for key in results[loc].keys() if '_SC' in key or '_AB' in key]
                 for var in bin_vars:
                     if len(results[loc][var]) > 0:
-                        results[loc][var] = np.mean(results[loc][var].reshape(-1, 12), axis=1)
+                        n_complete_years = len(results[loc][var]) // 12
+                        if n_complete_years > 0:
+                            data_to_reshape = results[loc][var][:n_complete_years * 12]
+                            results[loc][var] = np.mean(data_to_reshape.reshape(-1, 12), axis=1)
             
             if len(time[loc]) > 0:
-                time[loc] = time[loc][::12]
+                n_complete_years = len(time[loc]) // 12
+                if n_complete_years > 0:
+                    time[loc] = time[loc][::12][:n_complete_years]
 
     # ============================================================================
-    # PLOTTING
+    # PLOTTING - LOOP OVER REGIONS
     # ============================================================================
 
     # Create time axis for plotting (use years from model time)
@@ -1085,220 +1118,346 @@ for case_name in case_names:
         final_plot_list = plot_variables
         plot_groups = {}
 
-    fig, axes = plt.subplots(len(final_plot_list), len(locations), figsize=(5*len(locations), 25), sharex='col')
+    def plot_for_region(region_name, region_locations, results, units, time, plot_variables, plot_groups, final_plot_list, plot_time, case_name, year_label, outpath, plot_suffix=""):
+        """Create plots for a specific region"""
+        
+        print(f"\nCreating plots for region: {region_name}")
+        
+        fig, axes = plt.subplots(len(final_plot_list), len(region_locations), figsize=(5*len(region_locations), 25), sharex='col')
+        
+        # Handle case when there's only one subplot
+        if len(final_plot_list) == 1 and len(region_locations) == 1:
+            axes = np.array([[axes]])
+        elif len(final_plot_list) == 1:
+            axes = axes.reshape(1, -1)
+        elif len(region_locations) == 1:
+            axes = axes.reshape(-1, 1)
 
-    for i, var_or_group in enumerate(final_plot_list):
-        for j, loc in enumerate(locations):
-            if plot_by_size_and_age and var_or_group in plot_groups:
-                # Plot all bins (size class or age bin) for this variable
-                def extract_bin_number(var_name):
-                    """Extract bin number from variable name"""
-                    if '_SC' in var_name:
-                        return int(var_name.split('_SC')[1])
-                    elif '_AB' in var_name:
-                        return int(var_name.split('_AB')[1])
-                    else:
-                        return 0
-                
-                bin_vars = sorted(plot_groups[var_or_group], key=extract_bin_number)
-                var_units = 'unknown units'
-                
-                # Determine if this is size class or age bin based on the first variable
-                is_size_class = '_SC' in bin_vars[0]
-                bin_type = 'size' if is_size_class else 'age'
-                
-                # Get bin colors and labels
-                bin_colors, bin_labels = get_bin_info(bin_type)
-                
-                for k, bin_var in enumerate(bin_vars):
-                    if bin_var in results[loc] and len(results[loc][bin_var]) > 0:
-                        var_data = results[loc][bin_var]
-                        var_units = units[loc].get(bin_var, 'unknown units')
-                        
-                        if is_size_class:
-                            bin_num = int(bin_var.split('_SC')[1])
+        for i, var_or_group in enumerate(final_plot_list):
+            for j, loc in enumerate(region_locations):
+                if plot_by_size_and_age and var_or_group in plot_groups:
+                    # Plot all bins (size class or age bin) for this variable
+                    def extract_bin_number(var_name):
+                        """Extract bin number from variable name"""
+                        if '_SC' in var_name:
+                            return int(var_name.split('_SC')[1])
+                        elif '_AB' in var_name:
+                            return int(var_name.split('_AB')[1])
                         else:
-                            bin_num = int(bin_var.split('_AB')[1])
-                        
-                        # Use custom color and bin-based label
-                        color = bin_colors[bin_num] if bin_num < len(bin_colors) else 'black'
-                        label = bin_labels[bin_num] if bin_num < len(bin_labels) else f'Bin{bin_num}'
-                        
-                        # Plot with proper time axis if available, otherwise use indices
-                        if len(plot_time) == len(var_data):
-                            axes[i, j].plot(plot_time, var_data, label=label, linewidth=2, color=color)
-                        else:
-                            axes[i, j].plot(var_data, label=label, linewidth=2, color=color)
-                
-                axes[i, j].set_title(f"{var_or_group} ({var_units})")
-                axes[i, j].grid(True)
-                
-                # Show legend only for the first bin variable of each type and first location
-                if j == 0:  # First location only
-                    # Check if this is the first occurrence of this bin type
-                    current_bin_type = 'size' if is_size_class else 'age'
-                    is_first_of_type = True
+                            return 0
                     
-                    # Check if we've already shown a legend for this bin type
-                    for prev_i in range(i):
-                        prev_var = final_plot_list[prev_i]
-                        if prev_var in plot_groups:
-                            prev_bin_vars = plot_groups[prev_var]
-                            if len(prev_bin_vars) > 0:
-                                prev_is_size_class = '_SC' in prev_bin_vars[0]
-                                prev_bin_type = 'size' if prev_is_size_class else 'age'
-                                if prev_bin_type == current_bin_type:
-                                    is_first_of_type = False
-                                    break
+                    bin_vars = sorted(plot_groups[var_or_group], key=extract_bin_number)
+                    var_units = 'unknown units'
                     
-                    if is_first_of_type:
-                        axes[i, j].legend(loc='upper left', fontsize=9, frameon=True, ncol=2)
-                
-            else:
-                # Regular variable plotting (original code)
-                if var_or_group in results[loc] and len(results[loc][var_or_group]) > 0:
-                    var_data = results[loc][var_or_group]
-                    var_units = units[loc].get(var_or_group, 'unknown units')
+                    # Determine if this is size class or age bin based on the first variable
+                    is_size_class = '_SC' in bin_vars[0]
+                    bin_type = 'size' if is_size_class else 'age'
                     
-                    # FIRST: Plot obs if available for this variable/location (so they appear behind model)
-                    if plot_ilamb:
-                        obs_var = sim_to_ilamb.get(var_or_group, None)
-                        if obs_var:
-                            # Find all observational datasets for this variable
-                            matching_obs = [obs_name for obs_name in obs_results.keys() 
-                                          if obs_name.startswith(f"{obs_var}_") and loc in obs_results[obs_name]]
+                    # Get bin colors and labels
+                    bin_colors, bin_labels = get_bin_info(bin_type)
+                    
+                    for k, bin_var in enumerate(bin_vars):
+                        if bin_var in results[loc] and len(results[loc][bin_var]) > 0:
+                            var_data = results[loc][bin_var]
+                            var_units = units[loc].get(bin_var, 'unknown units')
                             
-                            # Use different colors and line styles for multiple obs datasets
-                            colors = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
-                            linestyles = ['--', '-.', ':', '--', '-.', ':', '--', '-.', ':']
+                            if is_size_class:
+                                bin_num = int(bin_var.split('_SC')[1])
+                            else:
+                                bin_num = int(bin_var.split('_AB')[1])
                             
-                            for idx, obs_name in enumerate(matching_obs):
-                                obs_data = obs_results[obs_name][loc]
-                                if obs_data is not None and np.all(obs_data < 1e30):
-                                    # Extract dataset name for label (remove variable prefix)
-                                    dataset_name = obs_name.replace(f"{obs_var}_", "")
-                                    color = colors[idx % len(colors)]
-                                    linestyle = linestyles[idx % len(linestyles)]
-                                    
-                                    if obs_data.ndim == 1 and len(var_data) > 0:
-                                        if len(obs_data) < 12:
-                                            axes[i, j].axhline(np.mean(obs_data), color=color, linestyle=linestyle, 
-                                                             label=f'{dataset_name}', linewidth=2)
-                                        else:
-                                            obs_repeats = int(len(var_data) / 12)
-                                            obs_plot = np.tile(obs_data, obs_repeats)
-                                            if len(plot_time) == len(obs_plot):
-                                                axes[i, j].plot(plot_time, obs_plot, label=f'{dataset_name}', 
-                                                               linestyle=linestyle, linewidth=2, color=color)
-                                            else:
-                                                axes[i, j].plot(obs_plot, label=f'{dataset_name}', 
-                                                               linestyle=linestyle, linewidth=2, color=color)
-                                    elif obs_data.ndim == 0:
-                                        axes[i, j].axhline(obs_data, color=color, linestyle=linestyle, 
-                                                         label=f'{dataset_name}', linewidth=2)
-                                    
-                            if obs_var == 'cSoil':
-                                axes[i, j].set_ylim(0, 50)
-                    else:
-                        # Only plot obs for TLAI
-                        if var_or_group == 'TLAI' and 2==2:
-                            for obs_name, obs_data_dict in obs_results.items():
-                                if loc in obs_data_dict:
-                                    obs_data = obs_data_dict[loc]
-                                    if not process_last_10_years and len(var_data) > 120 and not calc_annual:
-                                        obs_repeats = 10
-                                        obs_plot = np.tile(obs_data, obs_repeats)
-                                        if len(plot_time) >= 120:
-                                            x_obs = plot_time[-120:]
-                                            axes[i, j].plot(x_obs, obs_plot, label=obs_name, linestyle='--', linewidth=2)
-                                        else:
-                                            x_obs = np.arange(len(var_data)-120, len(var_data))
-                                            axes[i, j].plot(x_obs, obs_plot, label=obs_name, linestyle='--', linewidth=2)                               
-                                    elif calc_annual:
-                                        obs_repeats = len(var_data) // 12
-                                        obs_plot = np.mean(obs_data)
-                                        obs_plot = np.tile(obs_plot, obs_repeats)
-                                        if len(plot_time) == len(obs_plot):
-                                            axes[i, j].plot(plot_time, obs_plot, label=obs_name, linestyle='--', linewidth=2)
-                                        else:
-                                            axes[i, j].plot(obs_plot, label=obs_name, linestyle='--', linewidth=2)
-                                    else:
-                                        obs_repeats = int(len(var_data) / 12)
-                                        obs_plot = np.tile(obs_data, obs_repeats)
-                                        if len(plot_time) == len(obs_plot):
-                                            axes[i, j].plot(plot_time, obs_plot, label=obs_name, linestyle='--', linewidth=2)
-                                        else:
-                                            axes[i, j].plot(obs_plot, label=obs_name, linestyle='--', linewidth=2)
-
-                    # SECOND: Plot model data on top (so it's always visible)
-                    if len(plot_time) == len(var_data):
-                        axes[i, j].plot(plot_time, var_data, label='Model', linewidth=2, color='black', zorder=5)
-                    else:
-                        axes[i, j].plot(var_data, label='Model', linewidth=2, color='black', zorder=5)
-                                        
+                            # Use custom color and bin-based label
+                            color = bin_colors[bin_num] if bin_num < len(bin_colors) else 'black'
+                            label = bin_labels[bin_num] if bin_num < len(bin_labels) else f'Bin{bin_num}'
+                            
+                            # Plot with proper time axis if available, otherwise use indices
+                            if len(plot_time) == len(var_data):
+                                axes[i, j].plot(plot_time, var_data, label=label, linewidth=3, color=color)
+                            else:
+                                axes[i, j].plot(var_data, label=label, linewidth=3, color=color)
+                    
                     axes[i, j].set_title(f"{var_or_group} ({var_units})")
                     axes[i, j].grid(True)
                     
+                    # Show legend only for the first bin variable of each type and first location
+                    if j == 0:  # First location only
+                        # Check if this is the first occurrence of this bin type
+                        current_bin_type = 'size' if is_size_class else 'age'
+                        is_first_of_type = True
+                        
+                        # Check if we've already shown a legend for this bin type
+                        for prev_i in range(i):
+                            prev_var = final_plot_list[prev_i]
+                            if prev_var in plot_groups:
+                                prev_bin_vars = plot_groups[prev_var]
+                                if len(prev_bin_vars) > 0:
+                                    prev_is_size_class = '_SC' in prev_bin_vars[0]
+                                    prev_bin_type = 'size' if prev_is_size_class else 'age'
+                                    if prev_bin_type == current_bin_type:
+                                        is_first_of_type = False
+                                        break
+                        
+                        if is_first_of_type:
+                            axes[i, j].legend(loc='upper left', fontsize=9, frameon=True, ncol=2)
+                    
                 else:
-                    print(f"Warning: No data available for variable '{var_or_group}' at location '{loc}'. Skipping plot.")
-            
-            # Format x-axis to show years nicely
-            if len(plot_time) > 0:
-                axes[i, j].set_xlim(plot_time[0], plot_time[-1])
-                # Set x-axis labels to show every few years depending on data length
-                if len(plot_time) > 0:
-                    year_span = plot_time[-1] - plot_time[0]
-                    if year_span > 50:
-                        axes[i, j].set_xticks(np.arange(int(plot_time[0]), int(plot_time[-1])+1, 10))
-                    elif year_span > 20:
-                        axes[i, j].set_xticks(np.arange(int(plot_time[0]), int(plot_time[-1])+1, 5))
+                    # Regular variable plotting (original code)
+                    if var_or_group in results[loc] and len(results[loc][var_or_group]) > 0:
+                        var_data = results[loc][var_or_group]
+                        var_units = units[loc].get(var_or_group, 'unknown units')
+                        
+                        # FIRST: Plot obs if available for this variable/location (so they appear behind model)
+                        if plot_ilamb:
+                            obs_var = sim_to_ilamb.get(var_or_group, None)
+                            if obs_var:
+                                # Find all observational datasets for this variable
+                                matching_obs = [obs_name for obs_name in obs_results.keys() 
+                                              if obs_name.startswith(f"{obs_var}_") and loc in obs_results[obs_name]]
+                                
+                                # Use different colors and line styles for multiple obs datasets
+                                colors = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
+                                linestyles = ['--', '-.', ':', '--', '-.', ':', '--', '-.', ':']
+                                
+                                for idx, obs_name in enumerate(matching_obs):
+                                    obs_data = obs_results[obs_name][loc]
+                                    if obs_data is not None and np.all(obs_data < 1e30):
+                                        # Extract dataset name for label (remove variable prefix)
+                                        dataset_name = obs_name.replace(f"{obs_var}_", "")
+                                        color = colors[idx % len(colors)]
+                                        linestyle = linestyles[idx % len(linestyles)]
+                                        
+                                        if obs_data.ndim == 1 and len(var_data) > 0:
+                                            # Check if this is an annual plot (plot_suffix contains "Annual")
+                                            if plot_suffix and "Annual" in plot_suffix:
+                                                # For annual plots, show obs as horizontal line (annual mean)
+                                                obs_annual_mean = np.mean(obs_data) if len(obs_data) >= 12 else np.mean(obs_data)
+                                                axes[i, j].axhline(obs_annual_mean, color=color, linestyle=linestyle, 
+                                                                 label=f'{dataset_name}', linewidth=2)
+                                            elif len(obs_data) < 12:
+                                                axes[i, j].axhline(np.mean(obs_data), color=color, linestyle=linestyle, 
+                                                                 label=f'{dataset_name}', linewidth=2)
+                                            else:
+                                                # For monthly/seasonal plots, repeat seasonal cycle
+                                                obs_repeats = int(len(var_data) / 12)
+                                                obs_plot = np.tile(obs_data, obs_repeats)
+                                                if len(plot_time) == len(obs_plot):
+                                                    axes[i, j].plot(plot_time, obs_plot, label=f'{dataset_name}', 
+                                                                   linestyle=linestyle, linewidth=2, color=color)
+                                                else:
+                                                    axes[i, j].plot(obs_plot, label=f'{dataset_name}', 
+                                                                   linestyle=linestyle, linewidth=2, color=color)
+                                        elif obs_data.ndim == 0:
+                                            axes[i, j].axhline(obs_data, color=color, linestyle=linestyle, 
+                                                             label=f'{dataset_name}', linewidth=2)
+                                        
+                                if obs_var == 'cSoil':
+                                    axes[i, j].set_ylim(0, 50)
+                        else:
+                            # Only plot obs for TLAI
+                            if var_or_group == 'TLAI' and 2==2:
+                                for obs_name, obs_data_dict in obs_results.items():
+                                    if loc in obs_data_dict:
+                                        obs_data = obs_data_dict[loc]
+                                        
+                                        # Check if this is an annual plot
+                                        if (calc_annual or auto_calc_annual) and plot_suffix and "Annual" in plot_suffix:
+                                            # For annual plots, show obs as horizontal line (annual mean)
+                                            obs_annual_mean = np.mean(obs_data) if len(obs_data) >= 12 else np.mean(obs_data)
+                                            axes[i, j].axhline(obs_annual_mean, linestyle='--', 
+                                                             label=obs_name, linewidth=2)
+                                        elif not process_last_10_years and len(var_data) > 120 and not calc_annual and not auto_calc_annual:
+                                            obs_repeats = 10
+                                            obs_plot = np.tile(obs_data, obs_repeats)
+                                            if len(plot_time) >= 120:
+                                                x_obs = plot_time[-120:]
+                                                axes[i, j].plot(x_obs, obs_plot, label=obs_name, linestyle='--', linewidth=2)
+                                            else:
+                                                x_obs = np.arange(len(var_data)-120, len(var_data))
+                                                axes[i, j].plot(x_obs, obs_plot, label=obs_name, linestyle='--', linewidth=2)                               
+                                        else:
+                                            # For monthly/seasonal plots, repeat seasonal cycle
+                                            obs_repeats = int(len(var_data) / 12)
+                                            obs_plot = np.tile(obs_data, obs_repeats)
+                                            if len(plot_time) == len(obs_plot):
+                                                axes[i, j].plot(plot_time, obs_plot, label=obs_name, linestyle='--', linewidth=2)
+                                            else:
+                                                axes[i, j].plot(obs_plot, label=obs_name, linestyle='--', linewidth=2)
+
+                        # SECOND: Plot model data on top (so it's always visible)
+                        if len(plot_time) == len(var_data):
+                            axes[i, j].plot(plot_time, var_data, label='Model', linewidth=3, color='C0', zorder=5)
+                        else:
+                            axes[i, j].plot(var_data, label='Model', linewidth=3, color='C0', zorder=5)
+                                            
+                        axes[i, j].set_title(f"{var_or_group} ({var_units})")
+                        axes[i, j].grid(True)
+                        
                     else:
-                        axes[i, j].set_xticks(np.arange(int(plot_time[0]), int(plot_time[-1])+1, 2))
+                        print(f"Warning: No data available for variable '{var_or_group}' at location '{loc}'. Skipping plot.")
                 
-            if i == len(final_plot_list) - 1:
-                axes[i, j].set_xlabel('Year')
-            if j == 0:
-                axes[i, j].set_ylabel('')
+                # Format x-axis 
+                if len(plot_time) > 0:
+                    # Check if this is a seasonal plot (12 months)
+                    if len(plot_time) == 12 and np.array_equal(plot_time, np.arange(1, 13)):
+                        # Seasonal plot formatting
+                        axes[i, j].set_xlim(1, 12)
+                        axes[i, j].set_xticks(np.arange(1, 13))
+                        axes[i, j].set_xticklabels(['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'])
+                        if i == len(final_plot_list) - 1:
+                            axes[i, j].set_xlabel('Month')
+                    else:
+                        # Regular time series formatting
+                        axes[i, j].set_xlim(plot_time[0], plot_time[-1])
+                        # Set x-axis labels to show every few years depending on data length
+                        year_span = plot_time[-1] - plot_time[0]
+                        if year_span > 50:
+                            axes[i, j].set_xticks(np.arange(int(plot_time[0]), int(plot_time[-1])+1, 10))
+                        elif year_span > 20:
+                            axes[i, j].set_xticks(np.arange(int(plot_time[0]), int(plot_time[-1])+1, 5))
+                        else:
+                            axes[i, j].set_xticks(np.arange(int(plot_time[0]), int(plot_time[-1])+1, 2))
+                        if i == len(final_plot_list) - 1:
+                            axes[i, j].set_xlabel('Year')
+                if j == 0:
+                    axes[i, j].set_ylabel('')
 
-            # Add legend logic based on plot type and location
-            if j == 0:  # First location only
-                if plot_by_size_and_age and var_or_group in plot_groups:
-                    # For bin variables, legend is handled separately above
-                    pass
-                elif plot_ilamb:
-                    # For ILAMB plots, add legend for all variables in first location
-                    axes[i, j].legend(loc='upper left', fontsize=10, frameon=True)
-                elif i == 0:
-                    # For non-ILAMB plots, only add legend to first subplot
-                    axes[i, j].legend(loc='upper left', fontsize=12, frameon=True)
+                # Add legend logic based on plot type and location
+                if j == 0:  # First location only
+                    if plot_by_size_and_age and var_or_group in plot_groups:
+                        # For bin variables, legend is handled separately above
+                        pass
+                    elif plot_ilamb:
+                        # For ILAMB plots, add legend for all variables in first location
+                        axes[i, j].legend(loc='upper left', fontsize=10, frameon=True)
+                    elif i == 0:
+                        # For non-ILAMB plots, only add legend to first subplot
+                        axes[i, j].legend(loc='upper left', fontsize=12, frameon=True)
 
-    # Create the suptitle with location names, coordinates, and dominant PFT info
-    def loc_title(loc, coords):
-        dom_pft = coords.get('dom_pft_short', '?')
-        dom_frac = coords.get('dom_pft_frac', None)
-        if dom_frac is not None:
-            dom_str = f", {dom_pft} {dom_frac*100:2.0f}%"
+        # Create the suptitle with location names, coordinates, and dominant PFT info
+        def loc_title(loc, coords):
+            # Get PFT info from the main locations dict which has the processed PFT data
+            loc_info = locations.get(loc, coords)
+            dom_pft = loc_info.get('dom_pft_short', '?')
+            dom_frac = loc_info.get('dom_pft_frac', None)
+            if dom_frac is not None:
+                dom_str = f", {dom_pft} {dom_frac*100:2.0f}%"
+            else:
+                dom_str = ''
+            return f"{loc} (lat: {coords['lat']}, lon: {coords['lon']}{dom_str})"
+
+        location_titles = ';   '.join([loc_title(loc, region_locations[loc]) for loc in region_locations])
+        
+        title_suffix = f" - {plot_suffix}" if plot_suffix else ""
+        fig.suptitle(f"{case_name_only} - {region_name} (Yrs: {year_label}){title_suffix}", fontsize=22, fontweight='bold', y=0.99)
+        fig.text(0.5, 0.96, location_titles, ha='center', va='top', fontsize=15)
+
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+
+        # Save plot
+        output_filename = f"{outpath}/Point_Timeseries_{case_name_only}"
+        output_filename += f"_{region_name}"
+        output_filename += f'_{plot_varset}'
+        if plot_by_size_and_age:
+            output_filename += '_SizeAndAge'
+        output_filename += f'_{year_label}'
+        if plot_suffix:
+            output_filename += f'_{plot_suffix}'
+        output_filename += ".png"
+
+        plt.savefig(output_filename)
+        print(f"Plots saved to {output_filename}")
+        plt.close()  # Close the figure to free memory
+
+    def create_seasonal_climatology(monthly_data, monthly_time_data):
+        """Create seasonal climatology from monthly data"""
+        seasonal_data = {}
+        if len(monthly_time_data) > 0:
+            # Convert to array if needed and group by month
+            data_array = np.array(monthly_data) if not isinstance(monthly_data, np.ndarray) else monthly_data
+            
+            if len(data_array) >= 12:  # Need at least one year of data
+                # Reshape to (years, 12) if we have complete years
+                n_years = len(data_array) // 12
+                if n_years > 0:
+                    complete_data = data_array[:n_years * 12]
+                    monthly_means = np.mean(complete_data.reshape(n_years, 12), axis=0)
+                    return monthly_means
+        
+        return np.array([])
+
+    # Loop over each region and create separate plots
+    for region_name in plot_regions:
+        region_locations = get_locations_dict(region_name)
+        # Filter to only include locations that we have data for
+        available_region_locations = {loc: coords for loc, coords in region_locations.items() if loc in results}
+        
+        if available_region_locations:
+            # Create main plots (annual if auto-calculated)
+            suffix = "Annual" if auto_calc_annual else ""
+            plot_for_region(region_name, available_region_locations, results, units, time, 
+                          plot_variables, plot_groups, final_plot_list, plot_time, case_name_only, year_label, outpath, suffix)
+            
+            # Create seasonal plots if we have monthly data and it's a long time series
+            if auto_calc_annual and create_seasonal_plot and 'monthly_results' in locals():
+                print(f"Creating seasonal climatology plots for region: {region_name}")
+                
+                # Calculate seasonal climatology for each variable and location
+                seasonal_results = {}
+                for loc in available_region_locations:
+                    seasonal_results[loc] = {}
+                    for var in plot_variables:
+                        if var in monthly_results[loc] and len(monthly_results[loc][var]) > 0:
+                            seasonal_results[loc][var] = create_seasonal_climatology(
+                                monthly_results[loc][var], monthly_time[loc])
+                
+                # Create seasonal plot time axis (months 1-12)
+                seasonal_plot_time = np.arange(1, 13)
+                
+                # Create seasonal plot (reuse the same plotting function but with different data)
+                plot_for_region(region_name, available_region_locations, seasonal_results, units, 
+                              {loc: seasonal_plot_time for loc in available_region_locations}, 
+                              plot_variables, plot_groups, final_plot_list, seasonal_plot_time, 
+                              case_name_only, year_label, outpath, "Seasonal")
+            
+            # Create final 10 years monthly plots if we have long monthly data 
+            if auto_calc_annual and 'monthly_results' in locals():
+                print(f"Creating final 10 years monthly plots for region: {region_name}")
+                
+                # Extract final 10 years (120 months) of monthly data
+                final_10yr_results = {}
+                final_10yr_time = {}
+                
+                for loc in available_region_locations:
+                    final_10yr_results[loc] = {}
+                    
+                    # Check if we have enough data for 10 years
+                    if len(monthly_time[loc]) >= 120:  # At least 10 years of monthly data
+                        final_10yr_time[loc] = monthly_time[loc][-120:]
+                        
+                        for var in plot_variables:
+                            if var in monthly_results[loc] and len(monthly_results[loc][var]) >= 120:
+                                final_10yr_results[loc][var] = monthly_results[loc][var][-120:]
+                            else:
+                                final_10yr_results[loc][var] = np.array([])
+                    else:
+                        # Not enough data for 10 years, skip this location
+                        continue
+                
+                # Create plot time axis for final 10 years
+                if final_10yr_time:
+                    first_loc_with_data = next((loc for loc in final_10yr_time.keys() if len(final_10yr_time[loc]) > 0), None)
+                    if first_loc_with_data:
+                        final_10yr_plot_time = np.array([t.year + (t.month - 1) / 12.0 for t in final_10yr_time[first_loc_with_data]])
+                        
+                        # Only plot if we have locations with sufficient data
+                        valid_locations = {loc: coords for loc, coords in available_region_locations.items() 
+                                         if loc in final_10yr_results and len(final_10yr_time.get(loc, [])) >= 120}
+                        
+                        if valid_locations:
+                            plot_for_region(region_name, valid_locations, final_10yr_results, units, 
+                                          final_10yr_time, plot_variables, plot_groups, final_plot_list, 
+                                          final_10yr_plot_time, case_name_only, year_label, outpath, "Final10Years")
         else:
-            dom_str = ''
-        return f"{loc} (lat: {coords['lat']}, lon: {coords['lon']}{dom_str})"
-
-    location_titles = ';   '.join([loc_title(loc, coords) for loc, coords in locations.items()])
-    
-    fig.suptitle(f"{case_name} ({year_label})", fontsize=22, fontweight='bold', y=0.99)
-    fig.text(0.5, 0.96, location_titles, ha='center', va='top', fontsize=15)
-
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-
-    # Save plot
-    output_filename = f"{outpath}/Point_Timeseries_{case_name}"
-    output_filename += f"_{plot_region}"
-    output_filename += f'_{plot_varset}'
-    if plot_by_size_and_age:
-        output_filename += '_SizeAndAge'
-    output_filename += f'_{year_label}'
-    output_filename += ".png"
-
-    plt.savefig(output_filename)
-    print(f"Plots saved to {output_filename}")
+            print(f"Warning: No data available for any locations in region '{region_name}'. Skipping.")
 
 print('Finished CheckFates_Points (Refactored Version)')
