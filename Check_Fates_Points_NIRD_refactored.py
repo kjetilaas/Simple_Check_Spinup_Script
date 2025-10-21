@@ -14,12 +14,96 @@ print('Starting CheckFates_Points (Refactored Version)')
 # ============================================================================
 # Example usage:
 # python Check_Fates_Points_NIRD_refactored.py /datalake/NS9560K/noresm3/cases/n1850.ne16pg3_tn14.hybrid_fates-nocomp.noresm3_0_beta03a.2025-10-10 -o /datalake/NS9560K/www/diagnostics/noresm/kjetisaa/NorESM_Key_Simulations/
+# python Check_Fates_Points_NIRD_refactored.py case_name --regions Global Arctic --varset ilamb
+# python Check_Fates_Points_NIRD_refactored.py case_name --custom-locations "Amazon:-0.5:-65,Boreal:60:10" --custom-variables "TLAI,FATES_GPP,TSA"
 
-parser = argparse.ArgumentParser(description='Generate point timeseries plots for FATES model output')
+def parse_custom_locations(location_string):
+    """Parse custom locations from command line string format: 'name:lat:lon,name2:lat2:lon2'"""
+    locations = {}
+    if location_string:
+        for loc_spec in location_string.split(','):
+            parts = loc_spec.strip().split(':')
+            if len(parts) == 3:
+                name, lat, lon = parts
+                try:
+                    locations[name] = {'lat': float(lat), 'lon': float(lon)}
+                except ValueError:
+                    print(f"Warning: Invalid coordinates for location {name}: {lat}, {lon}")
+            else:
+                print(f"Warning: Invalid location format: {loc_spec}. Expected 'name:lat:lon'")
+    return locations
+
+def parse_custom_variables(variable_string):
+    """Parse custom variables from command line string format: 'var1,var2,var3'"""
+    variables = []
+    if variable_string:
+        variables = [var.strip() for var in variable_string.split(',') if var.strip()]
+    return variables
+
+# Available regions and variable sets for help text
+available_regions = ['Global', 'Arctic', 'Biased', 'Spikes', 'Boreal', 'South_America', 'Dust', 'Norway', 'Nordic']
+available_varsets = ['ilamb', 'dust', 'structure', 'dim1', 'seed', 'NBP', 'PFT', 'LU', 'mortality', 'size_class', 'LU_forcing', 'LU_forcing_transitions', 'LU_forcing_harvest']
+
+parser = argparse.ArgumentParser(description='Generate point timeseries plots for FATES model output',
+                                formatter_class=argparse.RawDescriptionHelpFormatter,
+                                epilog=f"""
+Available regions: {', '.join(available_regions)}
+Available variable sets: {', '.join(available_varsets)}
+
+Examples:
+  # Default: full set of regions (South_America, Global, Boreal, Arctic), ilamb varset
+  python %(prog)s case_name
+  
+  # Specific regions and varset
+  python %(prog)s case_name --regions Global Arctic --varset mortality
+  
+  # Single region with specific varset  
+  python %(prog)s case_name -r Boreal -v structure
+  
+  # Custom locations (name:lat:lon format, overrides regions)
+  python %(prog)s case_name --custom-locations "Amazon:-0.5:-65,Site2:60:10"
+  
+  # Custom variables (overrides varset)
+  python %(prog)s case_name --custom-variables "TLAI,FATES_GPP,TSA"
+  
+  # Combine custom options (fully custom analysis)
+  python %(prog)s case_name --locations "Site1:45:-120" --variables "TLAI,FATES_GPP"
+  
+  # Output to specific directory
+  python %(prog)s case_name -o /path/to/output --regions Nordic Norway
+
+Note: 
+- Custom locations override region selection
+- Custom variables override varset selection  
+- Use 'full' for regions to get default set: {['South_America', 'Global', 'Boreal', 'Arctic']}
+""")
+
 parser.add_argument('case_name', help='Case name or full path to case directory (e.g., "case_name" or "/path/to/case")')
 parser.add_argument('--output', '-o', default='figs/', help='Optional output base directory (default: figs/)')
 
+# Region selection
+parser.add_argument('--regions', '-r', nargs='+', choices=available_regions + ['full'], 
+                   default=['full'], help='Regions to plot (default: full = all regions). Choose from: %(choices)s')
+
+# Variable set selection  
+parser.add_argument('--varset', '-v', choices=available_varsets, default='ilamb',
+                   help='Variable set to plot (default: ilamb). Choose from: %(choices)s')
+
+# Custom locations and variables
+parser.add_argument('--custom-locations', '--locations', type=str,
+                   help='Custom locations in format "name1:lat1:lon1,name2:lat2:lon2". Overrides region selection.')
+
+parser.add_argument('--custom-variables', '--variables', type=str,
+                   help='Custom variables in format "var1,var2,var3". Overrides varset selection.')
+
 args = parser.parse_args()
+
+# Validate and provide feedback on argument combinations
+if args.custom_locations and args.regions != ['full']:
+    print("Note: Custom locations specified. Ignoring --regions option.")
+
+if args.custom_variables and args.varset != 'ilamb':
+    print("Note: Custom variables specified. Ignoring --varset option.")
 
 # ============================================================================
 # CONFIGURATION SECTION
@@ -45,16 +129,34 @@ if not os.path.exists(outpath):
     print(f'Creating output directory: {outpath}')
     os.makedirs(outpath, exist_ok=True)
 
-# Plotting options
-plot_regions = ['South_America', 'Global', 'Boreal', 'Arctic']  # List of regions to plot - 'Norway', 'Nordic', 'Global', 'Biased', 'Boreal', 'Arctic', 'Dust', 'Spikes'
-plot_varset = 'ilamb'      # 'ilamb', 'dust', 'structure', 'dim1', 'seed', 'NBP', 'PFT', 'LU', 'mortality', 'size_class'
+# Plotting options from command line arguments
+# Handle regions
+if 'full' in args.regions:
+    plot_regions = ['South_America', 'Global', 'Boreal', 'Arctic']  # Default full set
+else:
+    plot_regions = args.regions
+
+# Handle varset
+plot_varset = args.varset
+
+# Handle custom locations and variables
+custom_locations = parse_custom_locations(args.custom_locations) if args.custom_locations else None
+custom_variables = parse_custom_variables(args.custom_variables) if args.custom_variables else None
+
+print(f"Configuration:")
+print(f"  Regions: {plot_regions}")
+print(f"  Variable set: {plot_varset}")
+if custom_locations:
+    print(f"  Custom locations: {list(custom_locations.keys())}")
+if custom_variables:
+    print(f"  Custom variables: {custom_variables[:5]}{'...' if len(custom_variables) > 5 else ''}")
 
 # Time filtering options
-process_last_10_years = False
+process_last_10_years = True
 process_first_n_years = False
 first_n_years = 1
 process_selected_years = False
-select_yr_range = [0, 3]  # Assumes 12 files pr year, and where zero is first year of simulation (regarless of start year)
+select_yr_range = [45, 50]  # Assumes 12 files pr year, and where zero is first year of simulation (regarless of start year)
 calc_annual = False  # Will be automatically set to True for long time series (>30 years)
 create_seasonal_plot = True  # Create additional seasonal cycle plot for long time series
 
@@ -63,7 +165,7 @@ plot_by_pft = False
 pft_number = 1  # zero indexed
 
 # Size class and age bin options
-plot_by_size_and_age = False  # If True, plot size class variables (_SZ) and age bin variables (_AP) as separate lines instead of summing
+plot_by_size_and_age = True  # If True, plot size class variables (_SZ) and age bin variables (_AP) as separate lines instead of summing
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -94,9 +196,10 @@ def get_variable_list(varset):
         'NBP': ["TLAI", "FATES_FRACTION", "FATES_VEGC", "FATES_NPP", "HR", "FATES_NEP", "FATES_SEEDS_IN_EXTERN_EL", 
                 "FATES_GRAZING", "FATES_FIRE_CLOSS", "TOT_WOODPRODC_LOSS", "TOTSOMC_1m",
                "FATES_CA_WEIGHTED_HEIGHT", "FCO2"],
-        'mortality': ["TLAI", "FATES_NPLANT_PF", "FATES_MORTALITY_PF", "FATES_MORTALITY_CSTARV_SZ", "FATES_MORTALITY_LOGGING_SZ", "FATES_MORTALITY_FIRE_SZ",
+        'mortality': ["TLAI", "FATES_NPLANT_SZ", "FATES_VEGC_ABOVEGROUND_SZ", "FATES_MORTALITY_CSTARV_SZ", "FATES_MORTALITY_LOGGING_SZ", 
+               "FATES_MORTALITY_IMPACT_SZ", "FATES_MORTALITY_FIRE_SZ",
                "FATES_MORTALITY_BACKGROUND_SZ", "FATES_MORTALITY_FREEZING_SZ", "FATES_MORTALITY_HYDRAULIC_SZ",
-               "FATES_MORTALITY_AGESCEN_SZ", "FATES_MORTALITY_SENESCENCE_SZ" ],
+               "FATES_MORTALITY_AGESCEN_SZ", "FATES_MORTALITY_SENESCENCE_SZ", "FATES_MORTALITY_TERMINATION_SZ" ],
         'PFT': ["TLAI", "FATES_GPP_PF", "FATES_NPP_PF", "FATES_NPLANT_PF", "FATES_VEGC_PF", "FATES_MORTALITY_PF",
                "FATES_MORTALITY_CFLUX_PF", "FATES_MORTALITY_CSTARV_CFLUX_PF", "FATES_MORTALITY_FIRE_CFLUX_PF",
                "FATES_MORTALITY_HYDRO_CFLUX_PF", "FATES_MORTALITY_BACKGROUND_SZ", "FATES_MORTALITY_AGESCEN_SZ",
@@ -110,7 +213,7 @@ def get_variable_list(varset):
                       "FATES_PRIMARY_AREA_AP", "FATES_SECONDARY_AREA_AP", "FATES_LAI_AP"],
         #'LU': ["TLAI", "FATES_VEGC", "TOT_WOODPRODC", "FATES_WOOD_PRODUCT", "FATES_HARVEST_WOODPROD_C_FLUX", "FATES_LUCHANGE_WOODPROD_C_FLUX", 
         #       "FATES_LITTER_IN", "FATES_LITTER_OUT", "FATES_DISTURBANCE_RATE_LOGGING", "FATES_MORTALITY_LOGGING_SZ","FATES_CA_WEIGHTED_HEIGHT"],
-        'LU': ["FATES_HARVEST_WOODPROD_C_FLUX", "FATES_LUCHANGE_WOODPROD_C_FLUX", "TLAI", "FATES_VEGC", "FATES_DISTURBANCE_RATE_LOGGING", "FATES_MORTALITY_LOGGING_SZ"], 
+        'LU': ["FATES_HARVEST_WOODPROD_C_FLUX", "FATES_LUCHANGE_WOODPROD_C_FLUX", "TLAI", "FATES_VEGC", "FATES_DISTURBANCE_RATE_LOGGING", "FATES_MORTALITY_LOGGING_SZ","FATES_PRIMARY_AREA_AP", "FATES_SECONDARY_AREA_AP"], 
         'LU_forcing': ['primf', 'secdf', 'primn', 'secdn', 'urban', 'pastr', 'range', 'c3ann', 'c4ann',
                'c3per', 'c4per', 'c3nfx', 'primf_harv', 'primn_harv', 'secmf_harv', 'secyf_harv', 'secnf_harv' ],  # LU forcing variables
         'LU_forcing_transitions': [
@@ -277,7 +380,7 @@ def convert_obs_units(obs_field, obs_name):
     """Convert observational data units"""
     if not hasattr(obs_field, 'units'):
         return obs_field
-        
+    print(f"Original units for {obs_name}: {obs_field.units}")
     if obs_name in ['hfss', 'hfls'] and obs_field.units == 'MJ m-2 day-1':
         obs_field = obs_field * (1e6 / 86400)
         obs_field.attrs['units'] = 'W/m2'
@@ -287,10 +390,10 @@ def convert_obs_units(obs_field, obs_name):
     elif obs_name == 'tas' and obs_field.units == 'K':
         obs_field = obs_field - 273.15
         obs_field.attrs['units'] = 'degC'
-    elif obs_name == 'biomass' and obs_field.units == 'Mg/ha':
+    elif obs_name == 'biomass' and (obs_field.units == 'Mg/ha' or obs_field.units == 'Mg ha-1'):
         obs_field = obs_field * 0.1
         obs_field.attrs['units'] = 'kg/m2'
-    elif obs_name == 'gpp' and obs_field.units == 'g m-2 day-1':
+    elif obs_name == 'gpp' and (obs_field.units == 'g m-2 day-1' or obs_field.units == 'g/m^2/day'):
         obs_field = obs_field * 0.001 * 365
         obs_field.attrs['units'] = 'kg/m2/yr'
     elif obs_name == 'swe' and obs_field.units == 'm':
@@ -298,7 +401,7 @@ def convert_obs_units(obs_field, obs_name):
         obs_field.attrs['units'] = 'mm'
         obs_field = obs_field.where(obs_field < 1e30, 0)
         obs_field = obs_field.where(obs_field > 1e-5, 0)
-        
+    print(f"Converted units for {obs_name}: {obs_field.units}")
     return obs_field
 
 def get_multiple_obs_datasets():
@@ -491,7 +594,13 @@ def load_lu_forcing_data(locations):
 # SETUP DERIVED VARIABLES
 # ============================================================================
 
-plot_ilamb = (plot_varset == 'ilamb')
+# Determine if we should use ILAMB data based on varset or custom variables
+if custom_variables:
+    # Check if any custom variables match ILAMB variables
+    ilamb_vars = get_variable_list('ilamb')
+    plot_ilamb = any(var in ilamb_vars for var in custom_variables)
+else:
+    plot_ilamb = (plot_varset == 'ilamb')
 if plot_varset == 'PFT':
     plot_by_pft = True
 
@@ -528,21 +637,31 @@ sim_to_ilamb = {
     "FSDS": "rsds"
 }
 
-# Get variables and all locations from all regions
-variables = get_variable_list(plot_varset)
+# Get variables: use custom variables if provided, otherwise use varset
+if custom_variables:
+    variables = custom_variables
+    print(f"Using custom variables: {variables}")
+else:
+    variables = get_variable_list(plot_varset)
+    print(f"Using {plot_varset} variable set: {len(variables)} variables")
 
-# Collect all unique locations from all regions
-all_locations = {}
-for region in plot_regions:
-    region_locations = get_locations_dict(region)
-    for loc_name, coords in region_locations.items():
-        if loc_name not in all_locations:
-            all_locations[loc_name] = coords
-        
-print(f"Total unique locations across all regions: {len(all_locations)}")
-for region in plot_regions:
-    region_locs = get_locations_dict(region)
-    print(f"  {region}: {list(region_locs.keys())}")
+# Get locations: use custom locations if provided, otherwise use regions
+if custom_locations:
+    all_locations = custom_locations
+    print(f"Using custom locations: {list(all_locations.keys())}")
+else:
+    # Collect all unique locations from all regions
+    all_locations = {}
+    for region in plot_regions:
+        region_locations = get_locations_dict(region)
+        for loc_name, coords in region_locations.items():
+            if loc_name not in all_locations:
+                all_locations[loc_name] = coords
+    
+    print(f"Total unique locations across all regions: {len(all_locations)}")
+    for region in plot_regions:
+        region_locs = get_locations_dict(region)
+        print(f"  {region}: {list(region_locs.keys())}")
 
 locations = all_locations
 
@@ -971,7 +1090,7 @@ for case_name in case_names:
     if lu_data and len(lu_years) > 0:
         lu_forcing_vars = get_variable_list('LU_forcing')
         # Filter LU variables to only include those with meaningful values
-        lu_threshold = 1e-40
+        lu_threshold = 1e-3
         significant_lu_vars = []
         
         for var in lu_forcing_vars:
@@ -1043,6 +1162,91 @@ for case_name in case_names:
                 units[loc]["Mismatch"] = 'kgC/m2/yr'
         if "Mismatch" not in plot_variables:
             plot_variables.append("Mismatch")
+
+    # Convert mortality variables to fractions for mortality varset
+    if plot_varset == 'mortality':
+        print("Converting mortality variables to fractions...")
+        
+        # Determine time scaling factor based on whether we're using annual or monthly data
+        if calc_annual or auto_calc_annual:
+            time_scale_factor = 1.0  # Annual data, no scaling needed
+            time_scale_label = "annual"
+        else:
+            time_scale_factor = 1.0 / 12.0  # Monthly data, scale from annual rates
+            time_scale_label = "monthly"
+        
+        print(f"  Using {time_scale_label} time scaling (factor: {time_scale_factor})")
+        
+        if plot_by_size_and_age:
+            # Handle bin variables (individual size classes)
+            for loc in locations:
+                # Get all FATES_NPLANT_SZ bin variables
+                nplant_bin_vars = [key for key in results[loc].keys() if key.startswith('FATES_NPLANT_SZ_SC')]
+                
+                if nplant_bin_vars:
+                    # Process mortality bin variables
+                    mortality_bin_vars = [key for key in results[loc].keys() 
+                                        if key.startswith('FATES_MORTALITY_') and '_SZ_SC' in key]
+                    
+                    for mort_var in mortality_bin_vars:
+                        if len(results[loc][mort_var]) > 0:
+                            # Extract size class number from mortality variable
+                            sc_num = mort_var.split('_SC')[1]
+                            corresponding_nplant = f'FATES_NPLANT_SZ_SC{sc_num}'
+                            
+                            if corresponding_nplant in results[loc] and len(results[loc][corresponding_nplant]) > 0:
+                                nplant_data = results[loc][corresponding_nplant]
+                                mort_data = results[loc][mort_var]
+                                
+                                # Divide by FATES_NPLANT_SZ to get mortality fraction
+                                mortality_fraction = np.divide(mort_data, nplant_data, 
+                                                             out=np.zeros_like(mort_data), where=nplant_data != 0)
+                                
+                                # Scale by time factor (annual rates to monthly fractions if needed)
+                                mortality_fraction *= time_scale_factor
+                                
+                                # Replace the original data with fraction
+                                results[loc][mort_var] = mortality_fraction
+                                
+                                # Update units to reflect that it's now a fraction
+                                units[loc][mort_var] = f'fraction_{time_scale_label}'
+                                
+                                #print(f"  {loc}: Converted {mort_var} to mortality fraction")
+                            else:
+                                print(f"  Warning: {loc}: No {corresponding_nplant} data available for {mort_var}")
+                else:
+                    print(f"  Warning: {loc}: No FATES_NPLANT_SZ bin data available for mortality fraction calculation")
+        else:
+            # Handle aggregated variables (summed across size classes)
+            mortality_vars = [var for var in plot_variables if var.startswith('FATES_MORTALITY_') and var.endswith('_SZ')]
+            
+            for loc in locations:
+                # Check if we have FATES_NPLANT_SZ data
+                if 'FATES_NPLANT_SZ' in results[loc] and len(results[loc]['FATES_NPLANT_SZ']) > 0:
+                    nplant_data = results[loc]['FATES_NPLANT_SZ']
+                    
+                    # Process each mortality variable
+                    for mort_var in mortality_vars:
+                        if mort_var in results[loc] and len(results[loc][mort_var]) > 0:
+                            mort_data = results[loc][mort_var]
+                            
+                            # Divide by FATES_NPLANT_SZ to get mortality fraction
+                            # Use np.divide with out parameter to handle division by zero
+                            mortality_fraction = np.divide(mort_data, nplant_data, 
+                                                         out=np.zeros_like(mort_data), where=nplant_data != 0)
+                            
+                            # Scale by time factor (annual rates to monthly fractions if needed)
+                            mortality_fraction *= time_scale_factor
+                            
+                            # Replace the original data with fraction
+                            results[loc][mort_var] = mortality_fraction
+                            
+                            # Update units to reflect that it's now a fraction
+                            units[loc][mort_var] = f'fraction_{time_scale_label}'
+                            
+                            #print(f"  {loc}: Converted {mort_var} to mortality fraction")
+                else:
+                    print(f"  Warning: {loc}: No FATES_NPLANT_SZ data available for mortality fraction calculation")
 
 
     # Store original monthly data for seasonal plots if needed
@@ -1176,7 +1380,13 @@ for case_name in case_names:
                             else:
                                 axes[i, j].plot(var_data, label=label, linewidth=3, color=color)
                     
-                    axes[i, j].set_title(f"{var_or_group} ({var_units})")
+                    # Create title with location name for first subplot in each column
+                    if i == 0:  # First variable (row)
+                        title = f"{loc} - {var_or_group} ({var_units})"
+                    else:
+                        title = f"{var_or_group} ({var_units})"
+                    
+                    axes[i, j].set_title(title)
                     axes[i, j].grid(True)
                     
                     # Show legend only for the first bin variable of each type and first location
@@ -1288,8 +1498,14 @@ for case_name in case_names:
                             axes[i, j].plot(plot_time, var_data, label='Model', linewidth=3, color='C0', zorder=5)
                         else:
                             axes[i, j].plot(var_data, label='Model', linewidth=3, color='C0', zorder=5)
+                        
+                        # Create title with location name for first subplot in each column
+                        if i == 0:  # First variable (row)
+                            title = f"{loc} - {var_or_group} ({var_units})"
+                        else:
+                            title = f"{var_or_group} ({var_units})"
                                             
-                        axes[i, j].set_title(f"{var_or_group} ({var_units})")
+                        axes[i, j].set_title(title)
                         axes[i, j].grid(True)
                         
                     else:
@@ -1357,8 +1573,8 @@ for case_name in case_names:
         output_filename = f"{outpath}/Point_Timeseries_{case_name_only}"
         output_filename += f"_{region_name}"
         output_filename += f'_{plot_varset}'
-        if plot_by_size_and_age:
-            output_filename += '_SizeAndAge'
+        #if plot_by_size_and_age:
+        #    output_filename += '_SizeAndAge'
         output_filename += f'_{year_label}'
         if plot_suffix:
             output_filename += f'_{plot_suffix}'
