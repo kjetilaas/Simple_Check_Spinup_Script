@@ -80,6 +80,8 @@ Note:
 
 parser.add_argument('case_name', help='Case name or full path to case directory (e.g., "case_name" or "/path/to/case")')
 parser.add_argument('--output', '-o', default='figs/', help='Optional output base directory (default: figs/)')
+parser.add_argument('--lu-file', default='/nird/datalake/NS9560K/kjetisaa/LU_forcing_copy/LUH2_timeseries_to_surfdata_1.9x2.5_250723_cdf5.nc', 
+                   help='Land Use forcing file path (default: LUH2_timeseries_to_surfdata_1.9x2.5_250723_cdf5.nc)')
 
 # Region selection
 parser.add_argument('--regions', '-r', nargs='+', choices=available_regions + ['full'], 
@@ -110,17 +112,18 @@ if args.custom_variables and args.varset != 'ilamb':
 # ============================================================================
 
 user = 'kjetisaa'
-case_names = [args.case_name]  # Use command line argument
 
-trendy_flag = False  # If True, use TRENDY file naming and paths
-key_noresmflag = True  # If True, use noresm file naming and paths
+# Strip trailing slash from case name if present
+case_name_clean = args.case_name.rstrip('/')
+case_names = [case_name_clean]  # Use cleaned command line argument
 
 # Land Use forcing file configuration
-lu_forcing_dir = '/nird/datalake/NS9560K/kjetisaa/LU_forcing_copy/'
-lu_forcing_file = 'LUH2_timeseries_to_surfdata_1.9x2.5_250723_cdf5.nc'
+lu_forcing_file = args.lu_file
+lu_forcing_dir = os.path.dirname(lu_forcing_file)
+lu_forcing_filename = os.path.basename(lu_forcing_file)
 
 # Extract just the case name without path for output directory
-case_name_only = os.path.basename(args.case_name)
+case_name_only = os.path.basename(case_name_clean)
 
 # Output path: optional_path/case/Point_Plots/
 outpath = os.path.join(args.output, case_name_only, 'Point_Plots')
@@ -513,9 +516,8 @@ def get_bin_info(var_type):
     return bin_colors, bin_labels
 
 
-def load_lu_forcing_data(locations):
+def load_lu_forcing_data(locations, lu_file_path):
     """Load Land Use forcing data and extract at locations"""
-    lu_file_path = os.path.join(lu_forcing_dir, lu_forcing_file)
     
     if not os.path.exists(lu_file_path):
         print(f"Warning: LU forcing file not found: {lu_file_path}")
@@ -780,7 +782,7 @@ for loc in locations:
 
 if plot_varset == 'LU' and 2==2:
     print("Loading Land Use forcing data...")
-    lu_data, lu_years = load_lu_forcing_data(locations)
+    lu_data, lu_years = load_lu_forcing_data(locations, lu_forcing_file)
 else:
     lu_data, lu_years = {}, []
 
@@ -797,17 +799,14 @@ for case_name in case_names:
     # Use the case_name as provided (could be full path or just case name)
     # If it's just a case name, assume it's in the standard locations
     if os.path.isabs(case_name) or '/' in case_name:
-        # Case name includes path information
-        case_dir = os.path.join(case_name, 'lnd', 'hist')
+        # Case name includes path information - strip any trailing slash
+        case_dir = os.path.join(case_name.rstrip('/'), 'lnd', 'hist')
         if not os.path.exists(case_dir):
             # Try without lnd/hist if the path doesn't exist
-            case_dir = case_name
+            case_dir = case_name.rstrip('/')
     else:
-        # Case name only - use standard location logic
-        if case_name_only.startswith('i') and trendy_flag:
-            case_dir = f'/nird/datalake/NS9560K/kjetisaa/TRENDY25/{case_name_only}/lnd/hist/'
-        elif case_name_only.startswith('i') and not trendy_flag:
-            case_dir = f'/nird/datalake/NS9560K/kjetisaa/{case_name_only}/lnd/hist/'            
+        if case_name_only.startswith('i'):
+            case_dir = f'/nird/datalake/NS9560K/{user}/{case_name_only}/lnd/hist/'            
         else:
             case_dir = f'/nird/datalake/NS9560K/noresm3/cases/{case_name_only}/lnd/hist/'
 
