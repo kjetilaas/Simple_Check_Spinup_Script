@@ -152,13 +152,14 @@ if custom_variables:
     print(f"  Custom variables: {custom_variables[:5]}{'...' if len(custom_variables) > 5 else ''}")
 
 # Time filtering options
-process_last_10_years = True
+process_last_10_years = False
 process_first_n_years = False
 first_n_years = 1
 process_selected_years = False
-select_yr_range = [45, 50]  # Assumes 12 files pr year, and where zero is first year of simulation (regarless of start year)
-calc_annual = False  # Will be automatically set to True for long time series (>30 years)
+select_yr_range = [0, 3]  # Assumes 12 files pr year, and where zero is first year of simulation (regarless of start year)
+calc_annual = False  # Will be automatically set to True for long time series (>=20 years)
 create_seasonal_plot = True  # Create additional seasonal cycle plot for long time series
+print_logging_info = False  # Print logging info during processing
 
 # PFT options
 plot_by_pft = False
@@ -185,7 +186,7 @@ def get_variable_list(varset):
     """Get list of variables based on plot_varset"""
     variable_sets = {
         'ilamb': ["TLAI", "FATES_GPP", "FATES_VEGC", "TOTSOMC_1m", "TSA", "RAIN+SNOW", 
-                 "FSH", "EFLX_LH_TOT"], #, "FSR", "FSDS", "H2OSNO"
+                 "FSH", "EFLX_LH_TOT", "FSDS", "H2OSNO"], #, "FSR", "FSDS", "H2OSNO"
         'dust': ["TLAI", "SOILWATER_10CM", "U10_DUST", "DSTFLXT", "DSTDEP", "FATES_CA_WEIGHTED_HEIGHT"],
         'structure': ["FATES_NPLANT_SZ", "FATES_NCOHORTS", "FATES_NPATCHES", "TLAI", "TOTECOSYSC",
                      "FATES_NONSTRUCTC", "FATES_STRUCTC", "FATES_BA_WEIGHTED_HEIGHT", "FATES_CA_WEIGHTED_HEIGHT"],
@@ -210,12 +211,11 @@ def get_variable_list(varset):
                 "FATES_MORTALITY_LOGGING_SZ", "FATES_CA_WEIGHTED_HEIGHT"],
         'size_class': ["TLAI", "FATES_NPLANT_SZ", "FATES_VEGC_ABOVEGROUND_SZ", "FATES_LAI_CANOPY_SZ", "FATES_LAI_USTORY_SZ",
                       "FATES_MORTALITY_LOGGING_SZ", "FATES_BASALAREA_SZ", "FATES_BA_WEIGHTED_HEIGHT", "FATES_PATCHAREA_AP", 
-                      "FATES_PRIMARY_AREA_AP", "FATES_SECONDARY_AREA_AP", "FATES_LAI_AP"],
-        #'LU': ["TLAI", "FATES_VEGC", "TOT_WOODPRODC", "FATES_WOOD_PRODUCT", "FATES_HARVEST_WOODPROD_C_FLUX", "FATES_LUCHANGE_WOODPROD_C_FLUX", 
-        #       "FATES_LITTER_IN", "FATES_LITTER_OUT", "FATES_DISTURBANCE_RATE_LOGGING", "FATES_MORTALITY_LOGGING_SZ","FATES_CA_WEIGHTED_HEIGHT"],
-        'LU': ["FATES_HARVEST_WOODPROD_C_FLUX", "FATES_LUCHANGE_WOODPROD_C_FLUX", "TLAI", "FATES_VEGC", "FATES_DISTURBANCE_RATE_LOGGING", "FATES_MORTALITY_LOGGING_SZ","FATES_PRIMARY_AREA_AP", "FATES_SECONDARY_AREA_AP"], 
-        'LU_forcing': ['primf', 'secdf', 'primn', 'secdn', 'urban', 'pastr', 'range', 'c3ann', 'c4ann',
-               'c3per', 'c4per', 'c3nfx', 'primf_harv', 'primn_harv', 'secmf_harv', 'secyf_harv', 'secnf_harv' ],  # LU forcing variables
+                      "FATES_PRIMARY_AREA_AP", "FATES_SECONDARY_AREA_AP", "FATES_LAI_AP"],        
+        'LU': ["TLAI", "FATES_VEGC", "FATES_DISTURBANCE_RATE_LOGGING", "FATES_MORTALITY_LOGGING_SZ","FATES_PRIMARY_AREA_AP", "FATES_SECONDARY_AREA_AP"], 
+        'LU_forcing': ['primf', 'secdf', 'primn', 'secdn', 'pastr', 'range', 'primf_harv', 'primn_harv', 'secmf_harv', 'secyf_harv', 'secnf_harv' ],  # LU forcing variables
+        'LU_state_vars': ['primf', 'secdf', 'primn', 'secdn', 'urban', 'pastr', 'range', 'c3ann', 'c4ann',
+               'c3per', 'c4per', 'c3nfx' ],  # LU state variables
         'LU_forcing_transitions': [
                # Primary forest transitions
                'primf_to_secdn', 'primf_to_urban', 'primf_to_c3ann', 'primf_to_c4ann', 'primf_to_c3per', 'primf_to_c4per', 
@@ -1002,7 +1002,7 @@ for case_name in case_names:
     # Determine if we should calculate annual averages based on data length
     auto_calc_annual = False
     num_years = len(first_loc_time) / 12 if len(first_loc_time) > 0 else 0
-    if num_years > 30 and not calc_annual:
+    if num_years >= 20 and not calc_annual:
         auto_calc_annual = True
         print(f"Data spans {num_years:.1f} years - automatically calculating annual averages for main plots")
         if create_seasonal_plot:
@@ -1090,7 +1090,7 @@ for case_name in case_names:
     if lu_data and len(lu_years) > 0:
         lu_forcing_vars = get_variable_list('LU_forcing')
         # Filter LU variables to only include those with meaningful values
-        lu_threshold = 1e-3
+        lu_threshold = 1e-6
         significant_lu_vars = []
         
         for var in lu_forcing_vars:
@@ -1281,6 +1281,65 @@ for case_name in case_names:
                 n_complete_years = len(time[loc]) // 12
                 if n_complete_years > 0:
                     time[loc] = time[loc][::12][:n_complete_years]
+
+    # ============================================================================
+    # CHECK FOR HIGH LOGGING RATES
+    # ============================================================================
+
+    if print_logging_info:
+
+        # Check for FATES_DISTURBANCE_RATE_LOGGING > 1.0 and print all data for those locations
+        print("\n" + "="*80)
+        print("CHECKING FOR HIGH LOGGING RATES (FATES_DISTURBANCE_RATE_LOGGING > 1.0)")
+        print("="*80)
+        
+        # Store which locations have high logging rates
+        high_logging_locations = {}
+        
+        for loc in locations:
+            high_logging_locations[loc] = False
+            
+            if 'FATES_DISTURBANCE_RATE_LOGGING' in results[loc] and len(results[loc]['FATES_DISTURBANCE_RATE_LOGGING']) > 0:
+                logging_rates = results[loc]['FATES_DISTURBANCE_RATE_LOGGING']
+                
+                # Check if any time step has logging rate > 1.0
+                if np.any(logging_rates > 1.0):
+                    high_logging_locations[loc] = True
+                    max_logging = np.max(logging_rates)
+                    high_indices = np.where(logging_rates > 1.0)[0]
+                    
+                    print(f"\n{loc}: HIGH LOGGING DETECTED")
+                    print(f"  Maximum logging rate: {max_logging:.6f}")
+                    print(f"  Number of high logging time steps: {len(high_indices)}")
+                    
+                    # Print ALL available data for this location
+                    print(f"\n  ALL DATA FOR {loc}:")
+                    for var_name in sorted(results[loc].keys()):
+                        if len(results[loc][var_name]) > 0:
+                            var_data = results[loc][var_name]
+                            var_units = units[loc].get(var_name, 'unknown')
+                            
+                            # Print variable name, units, and data shape
+                            if hasattr(var_data, 'shape'):
+                                print(f"    {var_name} ({var_units}): shape={var_data.shape}")
+                            else:
+                                print(f"    {var_name} ({var_units}): length={len(var_data) if hasattr(var_data, '__len__') else 'scalar'}")
+                            
+                            # Print the actual data values
+                            if np.isscalar(var_data):
+                                print(f"      Value: {var_data}")
+                            else:
+                                print(f"      Values: {var_data}")
+        
+        # Summary
+        high_logging_count = sum(high_logging_locations.values())
+        print(f"\nSUMMARY:")
+        print(f"  Locations with high logging: {high_logging_count} out of {len(locations)}")
+        if high_logging_count > 0:
+            high_locs = [loc for loc, has_high in high_logging_locations.items() if has_high]
+            print(f"  High logging locations: {', '.join(high_locs)}")
+        
+        print("="*80)
 
     # ============================================================================
     # PLOTTING - LOOP OVER REGIONS
