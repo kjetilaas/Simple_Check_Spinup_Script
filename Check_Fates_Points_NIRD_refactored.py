@@ -41,7 +41,7 @@ def parse_custom_variables(variable_string):
     return variables
 
 # Available regions and variable sets for help text
-available_regions = ['Global', 'Arctic', 'Biased', 'Spikes', 'Boreal', 'South_America', 'Dust', 'Norway', 'Nordic']
+available_regions = ['Global', 'Arctic', 'Biased', 'Spikes', 'Boreal', 'South_America', 'Dust', 'Norway', 'Nordic', 'SE_US', 'Europe', 'India']
 available_varsets = ['ilamb', 'dust', 'structure', 'dim1', 'seed', 'NBP', 'PFT', 'LU', 'mortality', 'size_class', 'LU_forcing', 'LU_forcing_transitions', 'LU_forcing_harvest']
 
 parser = argparse.ArgumentParser(description='Generate point timeseries plots for FATES model output',
@@ -135,7 +135,7 @@ if not os.path.exists(outpath):
 # Plotting options from command line arguments
 # Handle regions
 if 'full' in args.regions:
-    plot_regions = ['South_America', 'Global', 'Boreal', 'Arctic']  # Default full set
+    plot_regions = ['South_America', 'Global','SE_US', 'Boreal', 'Arctic']  # Default full set
 else:
     plot_regions = args.regions
 
@@ -157,7 +157,7 @@ if custom_variables:
 # Time filtering options
 process_last_10_years = False
 process_first_n_years = False
-first_n_years = 1
+first_n_years = 30
 process_selected_years = False
 select_yr_range = [0, 3]  # Assumes 12 files pr year, and where zero is first year of simulation (regarless of start year)
 calc_annual = False  # Will be automatically set to True for long time series (>=20 years)
@@ -290,6 +290,22 @@ def get_locations_dict(region):
             'Larch': {'lat': 61, 'lon': 122},
             'Arc_grass': {'lat': 68, 'lon': 120.0},
         },
+        'Europe': {
+            'Madrid': {'lat': 40.4, 'lon': -3.7},
+            'Toulouse': {'lat': 43.6, 'lon': 1.4},
+            'Rome': {'lat': 41.9, 'lon': 12.5},
+            'Berlin': {'lat': 52.5, 'lon': 13.4},
+            'Dublin': {'lat': 53.3, 'lon': -6.2},
+            'Warsaw': {'lat': 52.2, 'lon': 21.0},
+            'Oslo': {'lat': 59.9, 'lon': 10.8}
+        },
+        'India': {
+            'North India': {'lat': 28.6, 'lon': 77.2},
+            'Central India': {'lat': 22.6, 'lon': 78.0},
+            'South India': {'lat': 13.0, 'lon': 80.2},
+            'East India': {'lat': 22.5, 'lon': 88.3},
+            'West India': {'lat': 19.0, 'lon': 72.8}           
+        },
         'Arctic': {
             'Mid Alaska': {'lat': 64.5, 'lon': -150.0},
             'East Canada': {'lat': 56.0, 'lon': -75.0},
@@ -324,6 +340,17 @@ def get_locations_dict(region):
             'NE_Bolivia': {'lat': -12.0, 'lon': -62.0},
             'Porto Alegre': {'lat': -30.0, 'lon': -51.0}
         },
+        'SE_US': {
+            'BL_CD': {'lat': 39.0, 'lon': -80.5},   
+            'Georgia': {'lat': 32.5, 'lon': -83.5},
+            'South Carolina': {'lat': 33.5, 'lon': -80.5},
+            'North Carolina': {'lat': 35.5, 'lon': -79.0},
+            'Virginia': {'lat': 37.5, 'lon': -78.0},
+            'Mississippi': {'lat': 32.5, 'lon': -90.0},
+            'Alabama': {'lat': 32.5, 'lon': -86.5},
+            'Louisiana': {'lat': 31.0, 'lon': -92.0},
+            'Tennessee': {'lat': 36.0, 'lon': -86.5}        
+        },        
         'Dust': {
             'Sahara': {'lat': 23, 'lon': -5},
             'Mid Austr.': {'lat': -25.0, 'lon': 136.0},
