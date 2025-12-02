@@ -7,28 +7,32 @@ import os
 print('Starting CheckStability_Fates_spinup')
 
 #Modify case name
-case_name = 'i1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.ADspinup_TRENDY2025.20250813'
+#case_name = 'i1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.ADspinup_TRENDY2025.20250813'
 #case_name = 'i1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.PostADspinup_TRENDY2025.20250814'
-<<<<<<< HEAD
 #case_name = 'i1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.PostADspinup_TRENDY2025.20250816'
 
 #case_name = 'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S0_TRENDY2025_pt1.202508011'
 #case_name = 'iHIST1700.f19_g17.fatesnocomp.ctsm5.3.045_noresm_v10.S3_TRENDY2025_pt1.202508018'
 
+#case_name = 'i1850.ne16pg3_tn14.ctsm5.3.045_noresm_v14.CPLHIST_postADspinup_fullOutput.2025-11-18'
+#case_name = 'i1850.ne16pg3_tn14.ctsm5.3.045_noresm_v15.CPLHIST_nograze.2025-11-20'
+#case_name = 'i1850.ne16pg3_tn14.ctsm5.3.045_noresm_v15.CPLHIST_GrassTest.2025-11-19'
+case_name = 'i1850.f45_f45_mg37.fatesnocomp.noresm3_0_beta06.CRUJRA2024_grazingtest_mods.2025-12-01'
 #Modify case directory
 
-case_dir =f'/nird/datalake/NS9560K/kjetisaa/TRENDY25/{case_name}/lnd/hist/'
+#case_dir =f'/nird/datalake/NS9560K/kjetisaa/{case_name}/lnd/hist/'
+case_dir =f'/nird/datalake/NS9560K/rosief/{case_name}/lnd/hist/'
 
 
-out_dir = 'figs/Trendy25/'
-annual_output=True
+out_dir = 'figs/'
+annual_output=False
 
 # if outpath does not exist, create it
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
 calc_annual = False
-read_last_n = False
+read_last_n = True
 read_first_n = False
 nfiles = 120
 plot_runmean = True  # Plot running mean of 12 months
@@ -47,34 +51,12 @@ if annual_output:
     plot_total = False
     plot_trendy_checks = False
 
-=======
-
-#Modify case directory
-#case_dir =f'/nird/datalake/NS9560K/kjetisaa/{case_name}/lnd/hist'
-#case_dir =f'/cluster/work/users/kjetisaa/archive/{case_name}/lnd/hist/'
-case_dir =f'/cluster/work/users/kjetisaa/noresm/{case_name}/run/'
-#case_dir =f'/cluster/work/users/kjetisaa/archive/{case_name}/'
-
-out_dir = 'figs/Trendy25/'
-
-# if outpath does not exist, create it
-if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
-
-calc_annual = False
-read_last_n = False
-nfiles = 240
->>>>>>> refs/remotes/origin/main
 
 # Conversion factors
 km2_to_m2 = 1e6
 g_to_Gt = 1e-15
 kg_to_Gt = 1e-12
-<<<<<<< HEAD
 CO2_to_C = 12.011 / 44.01  # Conversion factor from CO2 to C
-=======
-CO2_to_C = 12 / 44  # Conversion factor from CO2 to C
->>>>>>> refs/remotes/origin/main
 seconds_per_year = 365 * 24 * 60 * 60
 if annual_output:
     variables = ["TOTSOMC", "FATES_NEP", "TWS", "H2OSNO", "TLAI"] #"TOTCOLC", "TOTSOMC_1m",
@@ -94,7 +76,7 @@ else:
     trendy_vars = ["PBOT", "PCO2", "FATES_PATCHAREA_LU"]
 
 #variables = ["TOTSOMC", "TOTECOSYSC","FATES_VEGC", "FATES_GPP", "TWS", "TLAI",'FCO2'] #"TOTCOLC", "TOTSOMC_1m", 
-variables = ["TOTSOMC", "TOTECOSYSC", "FATES_NONSTRUCTC", "FATES_STRUCTC", "TWS", "TLAI", "FATES_LITTER_AG_CWD_EL","FATES_LITTER_AG_FINE_EL","FATES_LITTER_BG_CWD_EL","FATES_LITTER_BG_FINE_EL", "FCO2", "FATES_NEP", "FATES_NPP"]
+#variables = ["TOTSOMC", "TOTECOSYSC", "FATES_NONSTRUCTC", "FATES_STRUCTC", "TWS", "TLAI", "FATES_LITTER_AG_CWD_EL","FATES_LITTER_AG_FINE_EL","FATES_LITTER_BG_CWD_EL","FATES_LITTER_BG_FINE_EL", "FCO2", "FATES_NEP", "FATES_NPP"]
 
 # Find all timeseries files
 timeseries_files = sorted(glob.glob(f'{case_dir}/*.clm2.h0.*-*.nc'))
@@ -129,7 +111,6 @@ for filename in timeseries_files[:]:
         with xr.open_dataset(filename, engine='netcdf4') as data:            
             if first_file:
                 area = data["area"].fillna(0)
-<<<<<<< HEAD
                 landfrac = data["landfrac"].fillna(0)                
 
             if plot_trendy_checks:
@@ -164,13 +145,6 @@ for filename in timeseries_files[:]:
                                 print(f'Multiplying {var} by FATES_FRACTION')
                             #var_data = var_data_in * fates_fraction
                             var_data.attrs = var_data_in.attrs  # Preserve metadata/attributes
-=======
-                landfrac = data["landfrac"].fillna(0)
-                first_file = False
-            for var in variables:
-                if var in data:
-                    var_data = data[var]
->>>>>>> refs/remotes/origin/main
                     # Determine spatial dimensions
                     if "lndgrid" in var_data.dims:
                         spatial_dims = ("lndgrid",)
@@ -178,7 +152,6 @@ for filename in timeseries_files[:]:
                         spatial_dims = ("lat", "lon")
                     else:
                         spatial_dims = None
-<<<<<<< HEAD
                     if first_file:
                         print(f'Reading {var}, with units: {data[var].units}')
                     # Carbon pools: multiply by area and landfrac (convert m^2 to km^2)
@@ -221,34 +194,12 @@ for filename in timeseries_files[:]:
                     elif data[var].units == "kg s-1" :
                         if spatial_dims:
                             total = (var_data * kg_to_Gt * seconds_per_year).sum(dim=spatial_dims)
-=======
-
-                    # Carbon pools: multiply by area and landfrac (convert m^2 to km^2)
-                    if data[var].units == "gC/m^2":
-                        if spatial_dims:
-                            total = (var_data * area * km2_to_m2 * landfrac * g_to_Gt).sum(dim=spatial_dims)
-                        results[var].append(total.values)
-                    elif data[var].units == "kg m-2":
-                        if spatial_dims:
-                            total = (var_data * area * km2_to_m2 * landfrac * kg_to_Gt).sum(dim=spatial_dims)
-                        results[var].append(total.values)
-                    elif data[var].units == "kg m-2 s-1" or data[var].units == "kgCO2/m2/s":
-                        if spatial_dims:
-                            total = (var_data * area * km2_to_m2 * landfrac * kg_to_Gt * CO2_to_C * seconds_per_year).sum(dim=spatial_dims)
-
->>>>>>> refs/remotes/origin/main
                         results[var].append(total.values)
                     else:
                         if spatial_dims:
                             total = (var_data * area * landfrac).sum(dim=spatial_dims) / (area * landfrac).sum(dim=spatial_dims)
-<<<<<<< HEAD
                         results[var].append(total.values)
             first_file = False
-=======
-
-                        results[var].append(total.values)
-
->>>>>>> refs/remotes/origin/main
             time.append(data['time'].values)
     except FileNotFoundError:
         print(f"File not found: {filename}")
@@ -283,36 +234,22 @@ deltas = {var: np.diff(results[var], prepend=np.nan) for var in variables}
 fig, axes = plt.subplots(len(stabilitycheck_vars), 2, figsize=(20, 15), sharex='col')
 fig.suptitle('Timeseries Data and Changes')
 
-<<<<<<< HEAD
 for i, var in enumerate(stabilitycheck_vars):
     # Determine correct units for title based on calculation
     if var in data and getattr(data[var], "units", None) == "gC/m^2":
         title_unit = "GtC"
     elif var in data and getattr(data[var], "units", None) == "gC/m^2/s":
         title_unit = "GtC/yr"
-=======
-
-
-for i, var in enumerate(variables):
-    # Determine correct units for title based on calculation
-    if var == "FATES_VEGC" or (var in data and getattr(data[var], "units", None) == "gC/m^2"):
-        title_unit = "GtC"
->>>>>>> refs/remotes/origin/main
     elif var in data and getattr(data[var], "units", None) == "kg m-2":
         title_unit = "GtC"
     elif var in data and getattr(data[var], "units", None) == "kg m-2 s-1":
         title_unit = "GtC/yr"
-<<<<<<< HEAD
     elif var in data and getattr(data[var], "units", None) == "kg m-2 yr-1":
         title_unit = "GtC/yr"
     elif var in data and getattr(data[var], "units", None) == "kgCO2/m2/s":
         title_unit = "GtC/yr"        
     elif var in data and getattr(data[var], "units", None) == "kg s-1":
         title_unit = "GtC/yr"
-=======
-    elif var in data and getattr(data[var], "units", None) == "kgCO2/m2/s":
-        title_unit = "GtC/yr"        
->>>>>>> refs/remotes/origin/main
     elif var in data and getattr(data[var], "units", None) is not None:
         title_unit = getattr(data[var], "units")
     else:
@@ -338,7 +275,6 @@ else:
     plt.savefig(f"{out_dir}/Stability_{case_name}.png")
     print(f'Wrote file: {out_dir}/Stability_{case_name}.png')
 
-<<<<<<< HEAD
 
 if plot_total:
     #calculate NBP as sum of nep
@@ -484,6 +420,4 @@ if plot_trendy_checks:
 
     plt.savefig(f"{out_dir}/Stability_{case_name}_TrendyChecks.png")
     print(f'Wrote file: {out_dir}/Stability_{case_name}_TrendyChecks.png')
-=======
->>>>>>> refs/remotes/origin/main
 print('Finished CheckStability_Fates_spinup.py')
